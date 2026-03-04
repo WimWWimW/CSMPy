@@ -1,0 +1,60 @@
+from csmp import CSMP_Model
+
+
+class SimulationModelTemplate(CSMP_Model):
+    
+    def defineConstants(self):
+        ' -/- '
+        ":constants:"
+        return locals()
+    
+    
+    def defineParameters(self):
+        ' -/- '
+        ":parameters:"
+        return locals()
+    
+    
+    def setUp(self):        
+        globals().update(self.defineConstants())
+        globals().update(self.defineParameters())
+        globals().update(self.initial())
+        self.buildSystem()
+        ':initStates:'
+        ':systemParams:'
+        
+        
+    def initial(self):
+        """
+        Initialization-block called before the loop is started.
+        All variables created here will persist in the global scope,
+        unless explicitly deleted.
+        note: parameters and constants have been created above
+              and may be used here.
+        """
+        ':incons:'
+        ':initial:'
+        return locals()
+        
+        
+    def loop(self, time):
+        """
+        Called each time step and also in between,
+        if the integration method requires so.
+        """
+        ":commonBlock:"
+        
+        ":restoreValues:"
+        
+        ":dynamic:"
+        
+        ":update:"
+        
+        
+    def final(self):
+        """ 
+        End condition has been met. 
+        Final actions to take.
+        """
+        ":terminal:"
+

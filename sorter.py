@@ -1,0 +1,90 @@
+import keywords, functions
+import ast
+
+
+
+class Sorter:
+    
+    def __init__(self):
+        self.symbols = set(keywords.symbols()) | set(functions.symbols())
+        
+    
+    def addSymbol(self, name):
+        self.symbols.add(name)
+        
+    
+    def useImports(self, imports):
+        blanc = ast.parse("from keywords import sys")
+        dummy = blanc.body.pop(0) 
+        for imp in imports:
+            blanc.body.append(ast.copy_location(imp.node, dummy))
+            
+        ast.fix_missing_locations(blanc)
+
+        obj = compile(blanc, filename="<ast>", mode="exec")
+        globalSymbols = {}
+        localSymbols  = {}
+        exec(obj, globalSymbols, localSymbols)
+        
+        for name in globalSymbols:
+            self.addSymbol(name)
+            
+        for name in localSymbols:
+            self.addSymbol(name)
+            
+        
+    def getDependencies(self, wraps):
+        result = []
+        for wrapper in wraps:
+            defined = set()
+            needed  = set()
+            for node in ast.walk(wrapper.node):
+                if isinstance(node, ast.Name):
+                    if isinstance(node.ctx, ast.Store):
+                        defined.add(node.id)
+                    else:
+                        needed.add(node.id)
+            result.append((defined, needed, wrapper))
+        return result    
+
+            
+    def sort(self, wraps, addToSymbols = True, blockID = "sorter"):
+        resolved = []
+        unSorted = []
+        items    = self.getDependencies(wraps)
+        count    = len(items) * len(items)
+        known    = set() | self.symbols # a copy as working set
+        
+        while items and count:
+            count -=1
+            line   = items.pop(0)
+            names, dependencies, wrap = line
+            if all([v in known for v in dependencies]):
+                known |= names
+                resolved.append(wrap)
+            else:
+                items.append(line)
+                
+        for names, dependencies, wrap in items:
+            names = [d for d in dependencies if not d in known]
+            unSorted.append(wrap)
+            wrap.addRemark("unresolved name(s): %s" % names, originator = blockID)
+            
+        # return resolved, unSorted
+        wraps.clear()
+        wraps.extend(resolved)
+        wraps.extend(unSorted)
+        
+        if addToSymbols:
+            self.symbols = known
+        
+        
+        
+        
+    
+    
+    
+    
+    
+    
+        
