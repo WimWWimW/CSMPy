@@ -128,7 +128,7 @@ class MacroCollector(NodeCollector):
         return items 
     
     def _processNode_(self, node):
-        if node.value.func.id == "MACRO":
+        if isinstance(node.value, ast.Call) and (node.value.func.id == "MACRO"):
             return self.accept(node)
         return node
         
@@ -167,7 +167,8 @@ MACRO(
         LAI      = TWT*LAR
         """)
         
-TWT, LAI = GROWTH(TWTI,MC,CVF, LAR, ALU)        
+TWT1, LAI1 = GROWTH(TWTI1,MC,CVF, LAR, ALU)        
+TWT2, LAI2 = GROWTH(TWTI2,MC,CVF, LAR, ALU)        
     '''
 
     Lister().start()
@@ -191,9 +192,9 @@ TWT, LAI = GROWTH(TWTI,MC,CVF, LAR, ALU)
     else:
         d = dict([(m.name, m) for m in r])
         print(d)
-        
         s = MacroExpander().run(tree, d)
         print(s)
-        print(ast.unparse(s[0].node))
+
+        print(ast.unparse(tree))
         
         

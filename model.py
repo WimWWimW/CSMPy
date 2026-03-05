@@ -232,9 +232,9 @@ class Model:
             
 if __name__ == '__main__':
             
-    mdl = Model("./test.csm.py")
+    mdl = Model("./models/test.csm.py")
     print("\n", '-'*80, '\n')
-    mdl.saveListFile(False)
+    mdl.saveListFile(True)
     print("\n", '-'*80, '\n')
     mdl.debugSegmentation()
     mdl.printSummary()

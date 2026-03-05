@@ -1,0 +1,45 @@
+
+
+0001 from keywords import MACRO, TITLE, PARAM, CONSTANT, METHOD, TIMER, OUTPUT, PRINT,\
+0002     END
+0003 from functions import EXP, AMIN1
+0004 
+0005 # based on Fig 17 (pag. 56) in:
+0006 # F.W.T. Penning de Vries and H.H. van Laar (eds.), 1982: 
+0007 # Simulation of plant growth and crop production.
+0008 # Wageningen:Pudoc-III.-(Simulation Monographs)
+0009 
+0010 TITLE("DRY MATTER PRODUCTION")
+0011 
+0012 TWT     = WSH + WRT
+0013 WSH     = INTGRL(WSHI, GSH)
+0014 WRT     = INTGRL(WRTI, GRT)
+0015 INCON(
+0016     WSHI = 50., 
+0017     WRTI = 50.
+0018     )
+0019 GSH     = 0.7 * GTW
+0020 GRT     = 0.3 * GTW
+0021 GTW     = (GPHOT - MAINT) * CVF
+0022 MAINT   = (WSH + WRT) * 0.015
+0023 GPHOT   = GPHST * (1. - EXP(-0.7 * LAI))
+0024 LAI     = AMIN1(WSH / 500.,  5.)
+0025 
+0026 PARAM(
+0027     CVF = 0.7, 
+0028     GPHST = 400.
+0029     )
+0030 
+0031 TIMER(FINTIM = 100., DELT = 1., PRDEL = 5., OUTDEL = 5.)
+0032 METHOD("RECT")
+0033 PRINT(TWT, WSH, WRT, GTW)
+0034 OUTPUT(TWT)
+0035 END
+INFO >> CSMP statement END ignored (CSMPWrap)
+0036 
+
+
+
+
+       0 error(s)
+       0 warning(s)

@@ -16,7 +16,7 @@ class CSMP_Function:
     @classmethod
     def keywordInfo(cls, keyword: str):
         get = getattr(cls, "get" + keyword.capitalize(), False)
-        return get() if get else {}
+        return (get() | {"name": keyword}) if get else {}
     
     @classmethod
     def getParam(cls):

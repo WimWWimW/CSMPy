@@ -61,7 +61,7 @@ class Lister(metaclass = Singleton):
                     text    = msg[0]
                     sender  = "(%s)" % msg[1]
                     for s in text if isinstance(text, list) else [text]:
-                        print(f"{lvl} {deco}: {s} {sender}", file = file)
+                        print(f"{lvl} {deco} {s} {sender}", file = file)
                         sender = "" # do not repeat this
                     n += 1
             return (n > 0) # anything done

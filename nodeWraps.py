@@ -106,21 +106,21 @@ class LabelDecl(NodeWrap):
         
         
 class CSMPWrap(NodeWrap):
-    def __init__(self, node: ast.AST, status = 0, varlist = False):
+    def __init__(self, node: ast.AST, status = 0, varlist = False, name = "keyword"):
         super().__init__(node)
         self.status     = status
         self.toVarList  = varlist
         
         if status == CSMP_Function.IGNORED:
-            self.addRemark("CSMP statement ignored", lister.INFO)
+            self.addRemark("CSMP statement %s ignored" % name, lister.INFO)
         elif status == CSMP_Function.NOT_SUPPORTED:
-            self.addRemark("CSMP statement no longer supported")
+            self.addRemark("CSMP statement %s no longer supported" % name)
         elif status == CSMP_Function.NOT_YET:
-            self.addRemark("CSMP statement not yet implemented")
+            self.addRemark("CSMP statement %s not yet implemented" % name)
         elif status == CSMP_Function.OBSOLETE:
-            self.addRemark("CSMP statement obsolete")
+            self.addRemark("CSMP statement %s obsolete" % name)
         elif status == CSMP_Function.UNDECIDED:
-            self.addRemark("CSMP statement may be implementd in the future")
+            self.addRemark("CSMP statement %s may be implementd in the future" % name)
             
         
     def getLineNumber(self):
