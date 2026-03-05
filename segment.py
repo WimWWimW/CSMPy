@@ -1,14 +1,7 @@
 from enum import Enum
 from nodeWraps import NodeWrap
 import ast
-
-
-class SegmentationError(Exception): 
-    
-    def setLine(self, lineNo: int):
-        self.args = ("%s (line %d)" % (self.args[0], lineNo),)
-        
-        
+from errors import SegmentationError
 
 
 class SegmentLabel(Enum):

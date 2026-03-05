@@ -2,6 +2,7 @@ import sys
 from logging import ERROR, WARNING, INFO, _levelToName as levelName
 from collections import defaultdict
 from lib.singleton import Singleton
+import copy
 
 
 class Lister(metaclass = Singleton):
@@ -44,15 +45,24 @@ class Lister(metaclass = Singleton):
         self.addMessage(INFO, message, sourceLine, originator)
         
         
-    def report(self, code, file = sys.stdout, lineOffset = 1):
+    def report(self, code, file = sys.stdout, lineOffset = 1, reportAll = False):
         decoration = {ERROR: "**", WARNING: "!!", INFO: ">>"}
+        
+        messages = copy.copy(self.messages)
+        
         def printRemarks(line):
             n = 0
-            all = self.messages.get(line, {})
+            all = messages.pop(line, {})
             for level in (ERROR, WARNING, INFO):
-                lvl = all.get(level, [])
-                for msg in lvl:
-                    print("%s %s: %s (%s)" % (decoration.get(level, "??"), levelName[level], *msg), file = file)
+                messagesAtLevel = all.get(level, [])
+                for msg in messagesAtLevel:
+                    deco    = decoration.get(level, "??")
+                    lvl     = levelName[level]
+                    text    = msg[0]
+                    sender  = "(%s)" % msg[1]
+                    for s in text if isinstance(text, list) else [text]:
+                        print(f"{lvl} {deco}: {s} {sender}", file = file)
+                        sender = "" # do not repeat this
                     n += 1
             return (n > 0) # anything done
         
@@ -67,9 +77,14 @@ class Lister(metaclass = Singleton):
             if printRemarks(i + lineOffset):
                 print("")
         
+        
         print("\n", file = file)
         printRemarks(self.FINAL)
         
+        if reportAll: 
+            # add messages from lines beyond those of code:
+            for l in sorted(messages):
+                printRemarks(l)
                     
                     
           

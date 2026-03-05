@@ -3,7 +3,7 @@ from pathlib import Path
 import ast
 import inspect
 from nodeCollector import ConstantCollector, ImportCollector, SectionCollector,\
-    IntegralCollector, VarType
+    IntegralCollector, VarType, VarlistCollector
 from segment import SegmentLabel, ModelSegment, Section, SegmentationError,\
     ModelSegments
 from nodeWraps import NodeWrap, CSMPWrap
@@ -16,6 +16,9 @@ from lister import Lister
 import sys
 import traceback
 import copy
+import macros
+from macros import MacroCollector, MacroExpander
+from errors import PrecompilerError
 
 class ModelLoader:
     
@@ -61,23 +64,34 @@ class ModelLoader:
 class Model:
 
     def __init__(self, sourceFile):
-        self.loader = ModelLoader(sourceFile)
-        self.ast    = self.loader.getSyntaxTree()
+        self.loader     = ModelLoader(sourceFile)
+        self.ast        = self.loader.getSyntaxTree()
+        self.succes     = False
         self.processCode()
+        self.results    = Lister().count()
+        self.succes     = (self.results[0] == 0)
         
 
     def processCode(self):
         Lister().start()
         try:
+            self._macroExpansion()
             self._collectDeclarations()
             self._modelSegmentation()
             self._assignStatements()
             self._sortCodeBlocks()
             self._writeTemplate()
-        except Exception as e:
+        except PrecompilerError as e:
             Lister().addError("parsing of the source code failed", -1, "processCode")
     
     
+    @Lister.withContextError
+    def _macroExpansion(self):
+        self.macros = MacroCollector().run(self.ast)
+        macros = dict([(m.name, m) for m in self.macros])
+        MacroExpander().run(self.ast, macros)
+        
+        
     @Lister.withContextError
     def _modelSegmentation(self):
         self.segments = ModelSegments(self.ast)
@@ -90,6 +104,9 @@ class Model:
         self.consts  = ConstantCollector().run(self.ast, VarType.CONSTANT)
         self.incons  = ConstantCollector().run(self.ast, VarType.INCON)
         self.params  = ConstantCollector().run(self.ast, VarType.PARAM)
+        self.consts += VarlistCollector().run(self.ast, VarType.PARAM, self.consts)
+        self.incons += VarlistCollector().run(self.ast, VarType.PARAM, self.incons)
+        self.params += VarlistCollector().run(self.ast, VarType.PARAM, self.params)
         self.states  = IntegralCollector().run(self.ast)
         self.readOnly= dict([(wrap.name, wrap.varType)
                             for wrap in self.consts 
@@ -118,13 +135,15 @@ class Model:
         constants = (VarType.PARAM, VarType.INCON, VarType.CONSTANT)
         node = statement.node
         if isinstance(node, ast.Assign):
-            for elmt in node.targets:
-                varType = self.readOnly.get(elmt.id, -1)
-                if varType in constants:
-                    statement.addRemark("'%s' is read-only while it has been declared %s" % (elmt.id, varType.name), 
-                                        originator = "validate")
-                elif (varType == VarType.INTGRL) and not IntegralCollector.matches(node):
-                    statement.addRemark("INTGRL '%s' cannot be reassigned" % elmt.id, originator = "validate")
+            for n in ast.walk(node.targets[0]):
+                if isinstance(n, ast.Name): 
+                    varType = self.readOnly.get(n.id, -1)
+                    if varType in constants:
+                        statement.addRemark("'%s' is immutable while it has been declared %s" % (n.id, varType.name), 
+                                            originator = "validate")
+                    elif (varType == VarType.INTGRL) and not IntegralCollector.matches(node):
+                        statement.addRemark("'%s' is immutable while it has been declared %s" % (n.id, "INTGRL"), 
+                                            originator = "validate")
                  
                     
     @Lister.withContextError
@@ -192,6 +211,19 @@ class Model:
         self.loader.saveList(None if toFile else sys.stdout)
         
         
+    def printSummary(self, file = sys.stdout):
+        completed = "succesfully completed" if self.succes else "failed"
+        print(f"Parsing of {self.loader.file} {completed} with {self.results[0]} errors and {self.results[1]} warnings.\n", file = file)
+        items = ", ".join([v.name for v in sorted(self.states, key = lambda n: n.name)])
+        print(f"state variables: {items}\n", file = file)
+        format = lambda coll: ([" %-8s = %12g " % (k.name, -99999) for k in sorted(coll, key = lambda n: n.name)])
+        items  = (format(self.consts), format(self.params), format(self.incons))
+        import itertools
+        print("   %-22s "*3 % ("CONST", "PARAM", "INCON"))
+        for values in itertools.zip_longest(*items, fillvalue = " "*25):
+            print(*values, file = file)
+            
+            
     def debugSegmentation(self):
         try:
             self.segments.debug()
@@ -205,3 +237,4 @@ if __name__ == '__main__':
     mdl.saveListFile(False)
     print("\n", '-'*80, '\n')
     mdl.debugSegmentation()
+    mdl.printSummary()

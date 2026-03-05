@@ -9,11 +9,14 @@ class NodeWrap:
     
     remarkCallback = lambda *args, **kwargs: None # one assignment to rule all
     
-    def __init__(self, node: ast.AST):
+    def __init__(self, node: ast.AST, **kwargs):
         self.node    = node
         self.lines   = [node.lineno] 
         if node.end_lineno > node.lineno:
-            self.lines.append(node.end_lineno) 
+            self.lines.append(node.end_lineno)
+            
+        for n, v in kwargs.items():
+            setattr(self, n, v) 
          
 
     
@@ -23,12 +26,12 @@ class NodeWrap:
     statement = property(lambda w: w.getStatement())    
     
     
-    def source(self):
+    def getSource(self): # DONE: renamed from source()
         return ast.unparse(self.node)
     
     
     def list(self):
-        return "%04d:%04d %s (%s)" % (self.getStart(), self.getEnd(), self.source(), type(self).__name__)
+        return "%04d:%04d %s (%s)" % (self.getStart(), self.getEnd(), self.getSource(), type(self).__name__)
     
     
     def getLineNumber(self):
@@ -50,7 +53,9 @@ class NodeWrap:
     def __repr__(self):
         return self.list()
     
-class ImportDecl(NodeWrap): pass    
+    
+
+
 
 
 class ConstantDecl(NodeWrap): 
@@ -60,6 +65,8 @@ class ConstantDecl(NodeWrap):
         self.varType = varType
         
     name = property(lambda s: s.node.targets[0].id)
+
+        
 
 
 class IntegralDecl(ConstantDecl): 
@@ -87,6 +94,8 @@ class IntegralDecl(ConstantDecl):
         return mod.body[0]
     
     
+    
+    
 class LabelDecl(NodeWrap): 
         
     def __init__(self, node: ast.AST):
@@ -94,6 +103,8 @@ class LabelDecl(NodeWrap):
         super().__init__(node)
         text        = node.value.value
         self.label  = SegmentLabel[text]
+        
+        
         
         
 class CSMPWrap(NodeWrap):

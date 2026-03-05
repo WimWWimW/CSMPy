@@ -1,11 +1,11 @@
-from methods import IntegrationMethod
+from customTypes import IntegrationMethod
 
 def symbols():
     return [n for n in globals() if n == n.upper() and not n.startswith("_") ]
 
 
 class CSMP_Function:
-    NONE            = 0
+    OK              = 0
     toINIT          = 1
     IGNORED         =-2
     NOT_YET         =-3
@@ -21,12 +21,12 @@ class CSMP_Function:
     @classmethod
     def getParam(cls):
         # PARAM(value)
-        return dict(status = cls.NONE, varlist = False)
+        return dict(status = cls.OK, varlist = False)
 
     @classmethod
     def getConstant(cls):
         # CONSTANT(value)
-        return dict(status = cls.NONE, varlist = False)
+        return dict(status = cls.OK, varlist = False)
 
     @classmethod
     def getIncon(cls):
@@ -81,7 +81,7 @@ class CSMP_Function:
     @classmethod
     def getMacro(cls):
         # MACRO(*args, **kwargs)
-        return dict(status = cls.NOT_YET, varlist = False)
+        return dict(status = cls.OK, varlist = False)
 
     @classmethod
     def getEnd(cls):

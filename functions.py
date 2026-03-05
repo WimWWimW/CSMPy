@@ -11,6 +11,7 @@ status:
 
 import inspect, math
 import random
+from errors import NotYetImplementedError
         
 
 greaterThanZero = lambda x: x > 0
@@ -19,12 +20,6 @@ __RNDSEED__     = math.nan # None has special meaning and cannot be used here
 
 def symbols():
     return [n for n in globals() if n == n.upper() and not n.startswith("_") ]
-
-
-class NotYetImplementedError(Exception):
-    def __init__(self):
-        caller = inspect.stack()[1][3]
-        super().__init__("function '%s' has not been implemented yet" % caller)
 
 
 # def INTGRL(ic, x):
