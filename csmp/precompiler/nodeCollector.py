@@ -1,9 +1,10 @@
 import ast
-from enum import Enum
-from segment import SegmentLabel
-from nodeWraps import NodeWrap, IntegralDecl, ConstantDecl, LabelDecl
-from customTypes import VarType
 from collections import defaultdict
+from enum import Enum
+
+from ..customTypes import VarType
+from .nodeWraps import NodeWrap, IntegralDecl, ConstantDecl, LabelDecl
+from .segment import SegmentLabel
 
 
 class NodeCollector(ast.NodeTransformer):

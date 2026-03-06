@@ -1,8 +1,9 @@
 import ast
 import copy
-from keywords import CSMP_Function
-import lister
-from customTypes import VarType
+from ..customTypes import VarType
+from ..keywords import CSMP_Function
+from . import lister
+
 
 
 class NodeWrap:
@@ -47,7 +48,7 @@ class NodeWrap:
     def addRemark(self, msg: str, errorLvl = lister.ERROR, originator = None):
         if originator is None:
             originator = type(self).__name__
-        lister.Lister().addMessage(errorLvl, msg, self.node.end_lineno, originator)
+        lister.Lister().addMessage(errorLvl, msg, self.getEnd(), originator)
     
     
     def __repr__(self):
@@ -97,7 +98,7 @@ class IntegralDecl(NodeWrap):
 class LabelDecl(NodeWrap): 
         
     def __init__(self, node: ast.AST):
-        from segment import SegmentLabel
+        from csmp.precompiler.segment import SegmentLabel
         super().__init__(node)
         text        = node.value.value
         self.label  = SegmentLabel[text]

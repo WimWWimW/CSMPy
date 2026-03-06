@@ -1,4 +1,4 @@
-from csmp import CSMP_Model
+from csmp.rts.model import CSMP_Model
 
 
 class SimulationModelTemplate(CSMP_Model):

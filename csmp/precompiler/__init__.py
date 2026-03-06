@@ -1,33 +1,33 @@
-from importlib import util
-from pathlib import Path
 import ast
 import inspect
-from nodeCollector import ConstantCollector, ImportCollector, SectionCollector,\
-    IntegralCollector, VarType, VarlistCollector
-from segment import SegmentLabel, ModelSegment, Section, SegmentationError,\
-    ModelSegments
-from nodeWraps import NodeWrap, CSMPWrap
-from template import TemplateBuilder
-from sorter import Sorter
-from templates.simulationModelTemplate import SimulationModelTemplate
-import keywords
-from keywords import CSMP_Function
-from lister import Lister
 import sys
-import traceback
-import copy
-import macros
-from macros import MacroCollector, MacroExpander
-from errors import PrecompilerError
+import importlib.util
+from pathlib import Path
+
+from csmp.customTypes import VarType
+from csmp.errors import PrecompilerError, SegmentationError
+from csmp.keywords import CSMP_Function
+from csmp.precompiler.lister import Lister
+from csmp.precompiler.macros import MacroCollector, MacroExpander
+from csmp.precompiler.nodeCollector import ImportCollector, ConstantCollector, \
+    VarlistCollector, IntegralCollector
+from csmp.precompiler.nodeWraps import CSMPWrap, NodeWrap
+from csmp.precompiler.segment import ModelSegments, SegmentLabel
+from csmp.precompiler.sorter import Sorter
+from csmp.precompiler.template import TemplateBuilder
+from templates.simulationModelTemplate import SimulationModelTemplate
+
 
 class ModelLoader:
     
     def __init__(self, fileName):
-        path = Path(fileName)
-        name = path.stem.replace(".", "_")
-        spec = util.spec_from_file_location(name, path)
-        self.file    = path
-        self.module  = util.module_from_spec(spec)
+        path        = Path(fileName)
+        if not path.exists():
+            raise FileNotFoundError(fileName)
+        self.file   = path
+        name        = path.stem.replace(".", "_")
+        spec        = importlib.util.spec_from_file_location(name, path)
+        self.module = importlib.util.module_from_spec(spec)
         try:    spec.loader.exec_module(self.module)
         except: pass
         
@@ -45,7 +45,7 @@ class ModelLoader:
         
         def write(f):
             Lister().report(self.getSource(), file = f)
-            print("\n\n%8d error(s)\n%8d warning(s)" % Lister().count(), file = f)
+            print("%8d error(s)\n%8d warning(s)" % Lister().count(), file = f)
             
         if file is None:
             path = self.file.with_suffix(".lst")
@@ -61,7 +61,7 @@ class ModelLoader:
 
 
 
-class Model:
+class Precompiler:
 
     def __init__(self, sourceFile):
         self.loader     = ModelLoader(sourceFile)
@@ -230,11 +230,3 @@ class Model:
         except:
             print("*** segmentation incomplete")
             
-if __name__ == '__main__':
-            
-    mdl = Model("./models/test.csm.py")
-    print("\n", '-'*80, '\n')
-    mdl.saveListFile(True)
-    print("\n", '-'*80, '\n')
-    mdl.debugSegmentation()
-    mdl.printSummary()

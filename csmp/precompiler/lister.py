@@ -75,7 +75,7 @@ class Lister(metaclass = Singleton):
         for i, line in enumerate(code):
             print("%04d" % (i + 1), line, file = file)
             if printRemarks(i + lineOffset):
-                print("")
+                print("", file = file)
         
         
         print("\n", file = file)

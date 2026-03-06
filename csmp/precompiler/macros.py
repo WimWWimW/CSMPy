@@ -1,9 +1,10 @@
 import ast
-from nodeCollector import NodeCollector
-from nodeWraps import NodeWrap
-from lister import Lister
 import copy
-from errors import MacroError
+
+from .lister import Lister
+from .nodeCollector import NodeCollector
+from .nodeWraps import NodeWrap
+from ..errors import MacroError
 
 
 class FunCallWrap(NodeWrap):
@@ -150,7 +151,7 @@ class MacroExpander(NodeCollector):
             macro = self.codeBook.get(node.value.func.id, False)
             if macro:
                 self.accept(node)
-                return self.nodes[0].injection(macro)
+                return self.nodes[-1].injection(macro)
         return node
         
 

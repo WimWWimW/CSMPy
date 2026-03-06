@@ -1,9 +1,12 @@
 
 
 0001 from keywords import MACRO, TITLE, PARAM, CONSTANT, METHOD, TIMER, OUTPUT, PRINT
+ERROR ** No module named 'keywords' (NodeWrap)
+
 0002 from functions import EXP, AMIN1
+ERROR ** No module named 'functions' (NodeWrap)
+
 0003 
-ERROR ** redefinition of immutable variable 'EX1' (stateVarCheck)
 0004 TITLE("DRY MATTER PRODUCTION")
 0005 
 0006 MACRO("""
@@ -41,7 +44,5 @@ ERROR ** redefinition of immutable variable 'EX1' (stateVarCheck)
 0038 
 
 
-
-
-       1 error(s)
+       2 error(s)
        0 warning(s)

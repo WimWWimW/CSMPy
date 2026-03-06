@@ -1,5 +1,7 @@
-import keywords, functions
 import ast
+from .. import functions
+from .. import keywords
+from csmp.errors import PrecompilerError
 
 
 
@@ -14,6 +16,34 @@ class Sorter:
         
     
     def useImports(self, imports):
+        blanc = ast.parse("print()") # placeholder
+        
+        def importNode(imp):
+            dummy = blanc.body.pop(0)
+            
+            # note: the next line changes imp.node.(end_)lineno,
+            #       but not node.lines/getStart()/getEnd() 
+            blanc.body.append(ast.copy_location(imp.node, dummy))
+    
+            obj = compile(blanc, filename="<ast>", mode="exec")
+            globalSymbols = {}
+            localSymbols  = {}
+            try:
+                exec(obj, globalSymbols, localSymbols)
+            except ModuleNotFoundError as e:
+                imp.addRemark(e.msg)
+                
+            for name in globalSymbols:
+                self.addSymbol(name)
+                
+            for name in localSymbols:
+                self.addSymbol(name)
+            
+        for wrap in imports: # one by one in order to use line numbers
+            importNode(wrap)
+        
+        
+    def _useImports(self, imports):
         blanc = ast.parse("from keywords import sys")
         dummy = blanc.body.pop(0) 
         for imp in imports:
@@ -24,8 +54,11 @@ class Sorter:
         obj = compile(blanc, filename="<ast>", mode="exec")
         globalSymbols = {}
         localSymbols  = {}
-        exec(obj, globalSymbols, localSymbols)
-        
+        try:
+            exec(obj, globalSymbols, localSymbols)
+        except ModuleNotFoundError as e:
+            raise PrecompilerError("import error: " + e.msg)
+            
         for name in globalSymbols:
             self.addSymbol(name)
             

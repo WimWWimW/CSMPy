@@ -11,7 +11,7 @@ status:
 
 import inspect, math
 import random
-from errors import NotYetImplementedError
+from .errors import NotYetImplementedError
         
 
 greaterThanZero = lambda x: x > 0

@@ -1,4 +1,4 @@
-from customTypes import IntegrationMethod
+from csmp.customTypes import IntegrationMethod
 
 def symbols():
     return [n for n in globals() if n == n.upper() and not n.startswith("_") ]
