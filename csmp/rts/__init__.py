@@ -38,6 +38,7 @@ class CSMP_Model(ABC):
         self.globals        = {}
         self.functionBlocks = {} # by both index & name
         self.funcGenerators = {} # by both index & name
+        self.ratesEtc       = {} # local variables from DYNAMIC
         self.stateVars      = {} # by index
         self.stateNames     = {} # by name
         self.integrator     = Rect(self)
@@ -46,37 +47,46 @@ class CSMP_Model(ABC):
         
     stateVariables = property(lambda m: m.stateVars.values())
                 
-    
+    def getVariable(self, name, notFound = -99999):
+        ''' get current value of a named variable 
+        args:
+            name: name of the variable or state
+            notFound: default value if no variable exists with the given name
+        '''
+        result = self.stateNames.get(name)
+        if result is not None: 
+            return result.value
+        else:
+            return self.ratesEtc.get(name,
+                   self.globals.get(name, notFound)
+                   )
+        
+
     def run(self):
         # self.endConditions.append(EndCondition("RES", 450, ">="))
-        def findVariable(name, loopVars: dict, notFound = -99999):
-            result = self.stateNames.get(name)
-            if result is not None: return result.value
-            result = loopVars.get(name)
-            if result is not None: return result
-            result = self.globals.get(name)
-            if result is not None: return result
-            return notFound
-
         print(self.title)
         self.timer.start()
         self.printer.printHeader()
+        self.ratesEtc = self.loop(0)
         
         try:
+            done = False
+            
             while True:
-                v = self.loop(self.timer.time)
-                
                 if self.timer.printRequired():
-                    prVars = dict([(name, findVariable(name, v)) for name in self.printer.varNames])
+                    prVars = dict([(name, self.getVariable(name)) for name in self.printer.varNames])
                     self.printer.print(self.timer.time, prVars)
                 
                 if self.finished:
                     raise NormalFinish(self.finished)
                 
                 self.integrator.run()
-                
-                if not self.timer.setTimeStep():
+
+                if done:                
+                    self.loop(self.timer.time)
                     raise NormalFinish(f"time >= {self.timer.finTim}")
+                
+                done = self.timer.time >= self.timer.finTim # but do one final cycle
                 
         except NormalFinish as e:
             print(e)
