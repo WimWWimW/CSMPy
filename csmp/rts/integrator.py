@@ -11,6 +11,8 @@ class StateVariable:
         self.temp       = None
         self.mapManager = None
         self.mapIndex   = -1
+        self.absErr     = -1
+        self.relErr     = -1
         
 
     def map(self, mapManager, position):
@@ -151,10 +153,19 @@ class Trapz(Integrator):
         self.states = Yt + self.timer.delt * self.rates
 
         
+        
+class Adams2ndOrder(Integrator):        
 
+    def run(self):
+        Yt = self.copyStates()
+        r1, r2 = self.eulerSteps(self.timer.time, self.timer.delt, 2)
+        self.rates  = (3*r1 - r2) / 2.
+        self.states = Yt + self.timer.delt * self.rates
+
+        
     
 class RungeKutta4thOrder(Integrator):
-
+        
     def run(self):
         delt = self.timer.delt
         dlt2 = delt / 2.
@@ -205,7 +216,19 @@ class Simpson(Integrator):
             
             
 class RungeKuttaSimpson(RungeKutta4thOrder):
+    ABSERR      = 0.0001
+    RELERR      = 0.0001
     ERROR_LIMIT = 1./32, 1.
+    
+    def initialize(self):
+        super().initialize()
+        
+        # collect individual error limits:
+        err = [s.absErr for s in self.model.stateVariables]
+        self.absErr = numpy.array([e if e > 0 else self.ABSERR for e in err])
+        err = [s.relErr for s in self.model.stateVariables]
+        self.relErr = numpy.array([e if e > 0 else self.RELERR for e in err])
+        
     
     def run(self):
         Yt   = self.copyStates()
@@ -241,7 +264,8 @@ class RungeKuttaSimpson(RungeKutta4thOrder):
             self.isMajorStep = True
             
         # Foutberekening
-        A = R = 0.0001  
+        A = self.absErr 
+        R = self.relErr
         err     = abs(Yrks - Ysim) / (A + R * abs(Yrks))
         max_err = numpy.max(err)
         
