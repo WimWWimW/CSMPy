@@ -13,7 +13,7 @@ class Lister(metaclass = Singleton):
     @staticmethod        
     def withContextError(method):
         # @decorator to sent contextual information to Lister
-        def wrapper(*args, **kwargs):
+        def contextWrapper(*args, **kwargs):
             try:
                 method(*args, **kwargs)
             except Exception as e:        
@@ -21,7 +21,7 @@ class Lister(metaclass = Singleton):
                 if context.startswith("_"): context = context[1:]
                 Lister().addError(str(e), Lister.FINAL, context)
                 raise
-        return wrapper
+        return contextWrapper
         
         
     def __init__(self):

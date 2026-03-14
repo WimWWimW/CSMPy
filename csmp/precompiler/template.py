@@ -2,6 +2,7 @@ import lib.ast_comments as ast
 import inspect
 from io import StringIO
 from csmp.errors import ProgramError
+from pathlib import Path
 
 
 class TemplateBuilder(ast.NodeTransformer):
@@ -15,9 +16,11 @@ class TemplateBuilder(ast.NodeTransformer):
         else:
             raise ProgramError("unsupported template of type '%s'" % (type(template).__name__))
         
-        self.template   = template
-        self.code       = ast.parse(source)
-        self.code.body[0].name = self.code.body[0].name.replace("Template", "")
+        self.template           = template
+        self.code               = ast.parse(source)
+        # change name of class in template
+        self.code.body[0].name  = self.code.body[0].name.replace("Template", "")
+        
         
     
     def replace(self, tag: str, items: list, keepLabel = True):
@@ -37,35 +40,18 @@ class TemplateBuilder(ast.NodeTransformer):
         self.visit_Expr = replaceBranch
         self.visit(self.code)
         ast.fix_missing_locations(self.code)
-            
-        
-    def _replace(self, tag: str, codeObject: ast.AST, keepLabel = True):
-        subst = codeObject.body if isinstance(codeObject, ast.Module) else codeObject             
-        
-        def replaceBranch(node):
-            if isinstance(node.value, ast.Constant) and (node.value.value == tag):
-                items = [node] if keepLabel else []
-                for stmt in subst:
-                    items.append(ast.copy_location(stmt, node))
-                return items
-                
-            else:
-                return node
-        
-        self.visit_Expr = replaceBranch
-        self.visit(self.code)
-        ast.fix_missing_locations(self.code)
-            
+
         
     def write(self, file):
         print(ast.unparse(self.code), file = file)
+
         
     def toString(self):
         ss = StringIO()
         self.write(ss)
         return ss.getvalue()
 
-    # extra prox to run the created program TOTO: NYUsed
+    # extra prox to run the created program TODO: NYUsed
     def getClass(self, **compilerArgs):    
         obj = compile(self.code, filename="<ast>", mode="exec", **compilerArgs)
         namespace = {}

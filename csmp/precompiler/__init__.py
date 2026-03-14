@@ -8,7 +8,7 @@ from pathlib import Path
 from csmp.customTypes import VarType
 from csmp.errors import PrecompilerError, SegmentationError
 from csmp.keywords import CSMP_Function
-from csmp.precompiler.lister import Lister
+from csmp.precompiler.lister import Lister, WARNING
 from csmp.precompiler.loader import ModelLoader
 from csmp.precompiler.nodeCollector import ImportCollector, ConstantCollector, \
     VarlistCollector, IntegralCollector, FundefCollector
@@ -16,15 +16,17 @@ from csmp.precompiler.nodeWraps import CSMPKeywordWrap, NodeWrap, FunctionGenera
 from csmp.precompiler.segment import ModelSegments, SegmentLabel
 from csmp.precompiler.sorter import Sorter
 from csmp.precompiler.template import TemplateBuilder
-from templates.simulationModelTemplate import SimulationModelTemplate
 from csmp.precompiler.macros import MacroDeclarationCollector,\
     MacroExpansionCollector
+from templates.simulationModelTemplate import SimulationModelTemplate
 
 
 
 class Precompiler:
 
-    def __init__(self):
+    def __init__(self, options):
+        self.options  = options
+        self.template = SimulationModelTemplate
         self.reset()
         
         
@@ -34,6 +36,7 @@ class Precompiler:
         self.processCode()
         self.results    = Lister().count()
         self.succes     = (self.results[0] == 0)
+        self._writeOutput()
         
         
     def reset(self):
@@ -64,9 +67,9 @@ class Precompiler:
             self._collectDeclarations()
             self._modelSegmentation()
             self._assignStatements()
-            self.writeCurrentSource(extension=".unstd")
+            self.writeCurrentSource(sorted = False)
             self._sortCodeBlocks()
-            self.writeCurrentSource(extension=".sort")
+            self.writeCurrentSource(sorted = True)
         except PrecompilerError:
             Lister().addError("parsing of the source code failed", Lister.FINAL, "processCode")
     
@@ -169,7 +172,7 @@ class Precompiler:
                         self._validateStatement(statement)
                         break
                 else: # if not assigned ...
-                    statement.addRemark("spurious line", lister.WARNING)
+                    statement.addRemark("spurious line", WARNING)
                     # raise SegmentationError("line %d could not be assigend to a model segment" % line)
 
 
@@ -191,8 +194,24 @@ class Precompiler:
             segment.sort(codeSorter)
             
             
+    def _writeFile(self, writerProc, toScreen, toFile, fileExtension):
+        if toScreen:
+            writerProc(sys.stdout)
+        if toFile:
+            fileName = self.loader.getFilepath(fileExtension)
+            with fileName.open("w") as f:
+                writerProc(f)
+            print(f"created file {fileName}")
+            
+            
+    def _writeOutput(self):
+        self._writeFile(self.writeSummary,  self.options.summary["scrn"],  self.options.summary["file"], ".summary")    
+        self._writeFile(self.writeListFile, self.options.listFile["scrn"], self.options.listFile["file"], ".list")    
+        self._writeFile(self.writeTemplate, False, True, ".py")    
+            
+            
     @Lister.withContextError
-    def writeTemplate(self, file = sys.stdout, template = SimulationModelTemplate, builder = None):
+    def writeTemplate(self, file = sys.stdout):
         
         def common():
             variables = self.segments[SegmentLabel.INITIAL].getAssignments()
@@ -201,7 +220,7 @@ class Precompiler:
             return [NodeWrap(node.body[0])] if node.body else []
 
         generators  = itertools.chain.from_iterable([f.clients for f in self.fundefs])
-        builder     = TemplateBuilder(template) if builder is None else builder
+        builder     = TemplateBuilder(self.template)
         builder.replace(":commonBlock:", common())
 
         builder.replace(":parameters:",     self.params, False)
@@ -235,34 +254,35 @@ class Precompiler:
             write(file)
         
         
-    def writeCurrentSource(self, extension = None):
-        if extension is None:
-            file = sys.stdout
-        else:
-            file = self.loader.getFilepath(extension).open("w")
+    def writeCurrentSource(self, sorted: bool):
+
+        def writeSource(file):                
+            def output(label, items):
+                print("\n"+'-'*10, label, '-'*20, file=file)
+                for item in items:
+                    print(item, file=file)
+    
+            generators  = itertools.chain.from_iterable([f.clients for f in self.fundefs])
+            output("functions",      [NodeWrap(w.getDeclaration())     for w in self.fundefs])
+            output("generators",     [NodeWrap(w.getDeclaration())     for w in generators])
+            output("initStates",     [NodeWrap(w.getDeclaration())     for w in self.states])
+            output("constants",      self.consts)
+            output("parameters",     self.params)
+            output("systemParams",   self.init)
+    
+            output("initial",        self.segments.initial.getItems())
+            output("incons",         self.incons)
             
-        def output(label, items):
-            print("\n"+'-'*10, label, '-'*20, file=file)
-            for item in items:
-                print(item, file=file)
-                
-        generators  = itertools.chain.from_iterable([f.clients for f in self.fundefs])
-        output("functions",      [NodeWrap(w.getDeclaration())     for w in self.fundefs])
-        output("generators",     [NodeWrap(w.getDeclaration())     for w in generators])
-        output("initStates",     [NodeWrap(w.getDeclaration())     for w in self.states])
-        output("constants",      self.consts)
-        output("parameters",     self.params)
-        output("systemParams",   self.init)
-
-        output("initial",  self.segments.initial.getItems())
-        output("incons",         self.incons)
+            output("restoreValues",  [NodeWrap(w.getStateValue())      for w in self.states])
+            output("dynamic",  self.segments.dynamic.getItems())
+            output("update",         [NodeWrap(w.getUpdateStatement()) for w in self.states])
+            
+            output("terminal", self.segments.terminal.getItems())
         
-        output("restoreValues",  [NodeWrap(w.getStateValue())      for w in self.states])
-        output("dynamic",  self.segments.dynamic.getItems())
-        output("update",         [NodeWrap(w.getUpdateStatement()) for w in self.states])
-        
-        output("terminal", self.segments.terminal.getItems())
-
+        if sorted:
+            self._writeFile(writeSource,  self.options.sorted["scrn"],  self.options.sorted["file"], ".sorted")
+        else:    
+            self._writeFile(writeSource,  self.options.unsorted["scrn"],  self.options.unsorted["file"], ".unsorted")    
         
         
     def _getConstantValues(self):
@@ -285,12 +305,13 @@ class Precompiler:
         return result
         
         
-    def printSummary(self, file = sys.stdout):
+    def writeSummary(self, file = sys.stdout):
         modelFileName       = self.loader.file
         errors, warnings    = self.results
         completed           = "succesfully completed" if self.succes else "failed"
         stateVars           = ", ".join([v.name for v in sorted(self.states, key = lambda n: n.name)])
         
+        print("\n\n", file = file)
         print(f"Parsing of {modelFileName} {completed} with {errors} error(s) and {warnings} warning(s).\n", file = file)
         print(f"state variables: {stateVars}\n", file = file)
         
@@ -298,11 +319,12 @@ class Precompiler:
         format = lambda coll: ([" %-8s = %-12s " % (k.name, consts.get(k.name, -99999)) for k in sorted(coll, key = lambda n: n.name)])
         items  = (format(self.consts), format(self.params), format(self.incons))
         
-        print("   %-22s "*3 % ("CONST", "PARAM", "INCON"))
+        print("   %-22s "*3 % ("CONST", "PARAM", "INCON"), file = file)
         for values in itertools.zip_longest(*items, fillvalue = " "*25):
             print(*values, file = file)
             
         self.writeListFile(file, summary = True)
+        print("\n\n", file = file)
         
             
     def debugSegmentation(self):
@@ -319,7 +341,7 @@ if __name__ == '__main__':
     
     mdl = Precompiler()
     mdl.compile("../../models/test.csm.py")
-    mdl.printSummary()
+    mdl.writeSummary()
     # print("\n", '-'*80, '\n')
     # mdl.saveListFile(True)
     print("\n", '-'*80, '\n')

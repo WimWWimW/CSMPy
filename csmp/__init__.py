@@ -43,5 +43,5 @@ if IS_RELEASE:
     savedHook       = sys.excepthook 
     sys.excepthook  = lessSimpleErrors
 else:
-    sys.tracebacklimit = 3
+    sys.tracebacklimit = 300
     

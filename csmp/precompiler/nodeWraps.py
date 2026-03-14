@@ -54,6 +54,14 @@ class NodeWrap:
     
     def __repr__(self):
         return self.list()
+
+
+    def sync(self, peer: NodeWrap):
+        ast.copy_location(peer.node, self.node)
+        return peer
+    
+    
+    
     
     
 

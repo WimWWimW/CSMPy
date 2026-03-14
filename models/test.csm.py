@@ -11,7 +11,7 @@ MACRO("""
     RATE     = A * (X - B)
     DXDT     = RATE
     """)
-# - - - INITIAL ---"
+# --- INITIAL ---"
 T = 0 # t to test initial segment
 # --- DYNAMIC ---   
 TWT     = WSH + WRT
@@ -33,6 +33,7 @@ REDFT2   = FUNCTION(0.,1.,0.2,1.,0.25,0.,0.5,0.)
 REDF    = AFGEN(REDFT,LAI*4 - R1, extra=Clip)
 REDF2    = AFGEN(REDFT,LAI*4 - R1, extra=Clip)
 REDF2    = AFGEN(REDFT,LAI*4 - R1, extra=Clip)
+rgr      = PARAM(0.123)
 PARAM(
     CVF = 0.7, 
     GPHST = 400.,
