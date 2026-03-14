@@ -1,17 +1,19 @@
-import ast
+import lib.ast_comments as ast
 from enum import Enum
 
 from ..errors import SegmentationError
 from .nodeWraps import NodeWrap
+import re
 
 
 class SegmentLabel(Enum):
-    SORT    =-2, True
-    NOSORT  =-1, False
-    INITIAL = 0, True
-    DYNAMIC = 1, True
-    TERMINAL= 2, False
-
+    SORT        =-2, True
+    NOSORT      =-1, False
+    PREFACE     = 0, False
+    INITIAL     = 1, True
+    DYNAMIC     = 2, True
+    TERMINAL    = 3, False
+    
     def index(self):
         return self.value[0]
     
@@ -42,7 +44,7 @@ class __baseSection__:
 
 
     def __repr__(self):
-        return "%s-section (line %d; %d item(s))" % (self.label.name, self.start, len(self.items))
+        return "%s-section (lines %d - %d)" % (self.label.name, self.start, self.end)
     
     
     def getStart(self): return self.lines[0]
@@ -230,13 +232,31 @@ class ModelSegment(__baseSection__):
                 
                 
 class ModelSegments:
+    """       | segment              | statement (label)       | position
+    ----------+----------------------+-------------------------+---------------------
+    INITIAL:  | optional             | required if present     | must precede DYNAMIC
+    ----------+----------------------+-------------------------+---------------------
+    DYNAMIC:  | required and default | only required if there  |
+              |                      | is an INITIAL statement |
+    ----------+----------------------+-------------------------+---------------------
+    TERMINAL: | optional             | required if present     | must follow DYNAMIC 
+    """
+
+
+    def extractSegmentLabel(self, text):
+        m = re.match("# *--- *([A-Z]+) *---", text)
+        if m is not None:
+            name = m.group(1)
+            if name in dir(SegmentLabel):
+                return SegmentLabel[name]
+        return None
+    
     
     def __init__(self, source):
-        self.segments = [ ModelSegment(lbl) for lbl in SegmentLabel if lbl.isSegment()]
+        self.segments      = [ ModelSegment(lbl) for lbl in SegmentLabel if lbl.isSegment()]
         self.dynamic.start = source.body[0].lineno
         self.dynamic.end   = source.body[-1].end_lineno
-        
-        currentSegment = self.dynamic # default, still may be changed until 1st assignment
+        currentSegment     = self.dynamic
         
         for node in source.body:
             line = node.lineno
@@ -244,11 +264,9 @@ class ModelSegments:
                 if (isinstance(node, ast.Assign) and not currentSegment.selected):
                     currentSegment.select(ModelSegment.IMPLICIT)
                 
-                if (isinstance(node, ast.Expr) and 
-                    isinstance(node.value, ast.Constant) and 
-                    node.value.value in dir(SegmentLabel)):
-                 
-                    lbl  = SegmentLabel[node.value.value]
+                if isinstance(node, ast.Comment):
+                    lbl = self.extractSegmentLabel(node.value)
+                    if lbl is None: continue 
                     
                     if lbl.isSegment():
                         # check segment order and multiple occurences:
@@ -275,9 +293,10 @@ class ModelSegments:
             s.structureSections()
             
         
-    initial  = property(lambda ms: ms[0])
-    dynamic  = property(lambda ms: ms[1])
-    terminal = property(lambda ms: ms[2])
+    #preface  = property(lambda ms: ms[0]) # likely obslete
+    initial  = property(lambda ms: ms[1])
+    dynamic  = property(lambda ms: ms[2])
+    terminal = property(lambda ms: ms[3])
         
         
     def items(self):

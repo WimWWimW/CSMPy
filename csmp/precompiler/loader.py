@@ -1,4 +1,4 @@
-import ast
+import lib.ast_comments as ast
 import importlib.util
 import inspect
 from pathlib import Path
@@ -16,9 +16,18 @@ class ModelLoader:
         name        = path.stem.replace(".", "_")
         spec        = importlib.util.spec_from_file_location(name, path)
         self.module = importlib.util.module_from_spec(spec)
+        # apply module's imports:
         try:    spec.loader.exec_module(self.module)
         except: pass
+        
+        self.folder = self.createOutputDirectory()
             
+            
+    def createOutputDirectory(self):
+        folder = (self.file.parent / self.file.stem).with_suffix(".out") 
+        folder.mkdir(exist_ok = True)
+        return folder
+    
                     
     def getSyntaxTree(self):
         return ast.parse(self.getSource())
@@ -35,9 +44,9 @@ class ModelLoader:
         
     def getFilepath(self, extension = None):
         if extension is None:
-            return self.file
+            return self.folder
         else: 
-            p = self.file.with_suffix("")
+            p = self.folder / self.file.stem
             return p.with_suffix(extension)
         
         

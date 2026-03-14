@@ -216,7 +216,7 @@ class Simpson(Integrator):
             
             
 class RungeKuttaSimpson(RungeKutta4thOrder):
-    ABSERR      = 0.0001
+    ABSERR      = 0.0001 # 0.001 according to the 1971 manual
     RELERR      = 0.0001
     ERROR_LIMIT = 1./32, 1.
     

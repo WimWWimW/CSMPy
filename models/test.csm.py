@@ -1,3 +1,4 @@
+# -- encoding: utf-8 ---
 from csmp import MACRO, TITLE, PARAM, CONSTANT, METHOD, TIMER, OUTPUT, PRINT
 from csmp import EXP, AMIN1
 from csmp import Clip
@@ -10,9 +11,9 @@ MACRO("""
     RATE     = A * (X - B)
     DXDT     = RATE
     """)
-"INITIAL"
-T = 0
-"DYNAMIC"   
+# - - - INITIAL ---"
+T = 0 # t to test initial segment
+# --- DYNAMIC ---   
 TWT     = WSH + WRT
 WSH     = INTGRL(WSHI, GSH)
 WRT     = INTGRL(WRTI, GRT)

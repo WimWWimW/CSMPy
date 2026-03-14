@@ -1,4 +1,4 @@
-import ast
+import lib.ast_comments as ast
 import inspect
 import itertools
 import sys
@@ -169,7 +169,8 @@ class Precompiler:
                         self._validateStatement(statement)
                         break
                 else: # if not assigned ...
-                    raise SegmentationError("line %d could not be assigend to a model segment" % line)
+                    statement.addRemark("spurious line", lister.WARNING)
+                    # raise SegmentationError("line %d could not be assigend to a model segment" % line)
 
 
     @Lister.withContextError

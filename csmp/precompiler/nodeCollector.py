@@ -1,4 +1,4 @@
-import ast
+import lib.ast_comments as ast
 from collections import defaultdict
 from enum import Enum
 

@@ -1,4 +1,4 @@
-import ast
+import lib.ast_comments as ast
 import copy
 from ..customTypes import VarType
 from ..keywords import CSMP_Function

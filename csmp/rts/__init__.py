@@ -1,6 +1,7 @@
-import ast, inspect
+import inspect
 from abc import ABC, abstractmethod
 from itertools import zip_longest
+import lib.ast_comments as ast
 
 from csmp.rts.csmpFunction import Csmp_AfGen, Csmp_Function, Csmp_NlfGen
 from csmp.rts.model import Printer

@@ -1,4 +1,4 @@
-import ast
+import lib.ast_comments as ast
 import inspect
 from io import StringIO
 from csmp.errors import ProgramError
