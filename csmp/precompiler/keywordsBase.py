@@ -6,16 +6,19 @@ import lib.ast_comments as ast
 
 from csmp import errors
 from csmp.precompiler.nodeWraps import NodeWrap
+from lib.smallUtilities import walkSmarter
 
 
 class KeywordStatus(Enum):
-    OK                  = 0
-    toINIT              = 1
+    UNDEFINED           = 0
+    OK                  = 1
     ignored             =-2
     obsolete            =-3
     not_supported       =-4
     not_yet_supported   =-5
     undecided           =-6
+    other               = -999
+    
     
     def humanReadable(self):
         return self.name.replace("_", " ")
@@ -32,6 +35,8 @@ class KeywordLabels(Enum):
     functions       = "function definitions"
     generators      = "function generator objects"
     initStates      = "state variable creation"
+    memoryObjects   = "memory object creation"        
+    historyObjects  = "history object creation"        
     systemParams    = "parametrize the model"
     restoreValues   = "current values of state variables"
     update          = "update rates"
@@ -49,15 +54,15 @@ class KeywordLabels(Enum):
     
     
 
-class KeywordWrap(NodeWrap): # TODO doubtfully distinct from Keyword
-    instances = defaultdict(list)
-    declaration = "createXXXXXXXX"
+class KeywordClass(NodeWrap): # TODO doubtfully distinct from Keyword
+    classes   = {}                  # registered classed
+    instances = defaultdict(list)   # instances per class (to generate an index)
     
     
     def __init__(self, node: ast.AST, name: str = None, **moreArgs):
         super().__init__(node, **moreArgs)
         self.name    = name
-        instanceList = KeywordWrap.instances[self._instanceLabel()]
+        instanceList = KeywordClass.instances[self._instanceLabel()]
         instanceList.append(self)
         self.index   = instanceList.index(self)
         if isinstance(self.node, ast.Assign):
@@ -82,6 +87,46 @@ class KeywordWrap(NodeWrap): # TODO doubtfully distinct from Keyword
     def clearAll(cls):
         cls.instances.clear()
         
+    
+    @classmethod
+    def className(cls, format = 0):
+        fmt = {1: str.capitalize, 2: str.lower}
+        if type(cls) != type:
+            cls = cls.__class__
+        
+        cap = fmt.get(format, str)
+        return cap(cls.__name__)    
+
+    @classmethod    
+    def __class_getitem__(cls, name):
+        return cls.classes.get(name)
+
+    @classmethod
+    def initialize(cls):
+        # register class:
+        Keyword.classes[cls.__name__] = cls
+        
+        # initialize categories:
+        cls.categories = set()
+        for cat in KeywordLabels:
+            if hasattr(cls, f"transform{cat.capitalize()}"):
+                cls.categories.add(cat)
+        
+        if cls.status == KeywordStatus.UNDEFINED:
+            cls.status = KeywordStatus.OK if cls.categories else KeywordStatus.not_yet_supported
+
+        if cls.declaration is None:
+            cls.declaration = "set" + cls.className().capitalize()
+            
+        
+    
+class Keyword(KeywordClass):                   
+    status      = KeywordStatus.UNDEFINED
+    categories  = set()
+    extract     = True
+    declaration = None
+    astClasses  = [ast.Expr] # supported classes to create from
+    
     
     def _copyNode(self):
         newNode = copy.deepcopy(self.node)
@@ -112,34 +157,6 @@ class KeywordWrap(NodeWrap): # TODO doubtfully distinct from Keyword
     
     
 
-class Keyword(KeywordWrap):                   
-    status      = KeywordStatus.OK
-    categories  = set()
-    extract     = True
-    classes     = {}
-
-    @classmethod
-    def className(cls):
-        if type(cls) != type:
-            cls = cls.__class__
-        return cls.__name__    
-
-    @classmethod    
-    def __class_getitem__(cls, name):
-        return cls.classes.get(name)
-
-    @classmethod
-    def initialize(cls):
-        # register class:
-        Keyword.classes[cls.__name__] = cls
-        
-        # initialize categories:
-        cls.categories = set()
-        for cat in KeywordLabels:
-            if hasattr(cls, f"transform{cat.capitalize()}"):
-                cls.categories.add(cat)
-        
-    
     def inplace(self):
         if self.status == KeywordStatus.not_supported:
             raise errors.PrecompilerError(f"{self.className()} is not supported in CSMPy")
@@ -173,4 +190,57 @@ class Keyword(KeywordWrap):
 
 
 
+class AssigningStatement(Keyword):
+    astClasses  = [ast.Assign] # supported classes to create from
+
+    def __init__(self, node, *args):
+        if not ("targets" in node._fields):
+            raise errors.PrecompilerError("syntax not understood")
+
+    def _getTargets(self):
+        return [p.id for p in walkSmarter(self.node.targets[0], [ast.Name])]
     
+    
+class ConstantDeclaration(Keyword):
+    ''' common ancestor for CONSTANT, PARAM and INCON (perhaps more in the future)
+    
+    This class evolved to be a bit more complex than other keywords, due to the 
+    facts that
+    - constants can be declared in a compound syntax
+    - the statements can appear as assigments or as expressions
+    - the resulting code must make depencencies explicit to the sorter (and thus to Python)
+    - the resulting code must make the assigned values easily accessible for evaluation
+      in the precompiler phase.
+    
+    The compound syntax (e.g.  CONSTANT(a = 1, b = 2...)) is undesirable since it does not
+    make the names and values explicit; therefore the KeywordCollector immediately splits
+    such statements into their atomic form (a = CONSTANT(1); b = CONSTANT(2) ...)
+    '''
+    
+    def _keywordArgsToAssignments(self): # TODO: mostly obsolete; refactoring desired.
+        if (len(self._base_.args) == 1) and self.name:
+            value = ast.unparse(self._base_.args[0])
+            return self._nodeFromString(f"{self.name} = {value}")
+            
+        # status = confused ...
+        if Lister.exists():  # @UndefinedVariable
+            self.addRemark(f"invalid {self.className()}-declaration")
+        return self.node
+        
+        
+    def toString(self): # NOT __str__ !!
+        return self.list()
+
+    def getValue(self):
+        return ast.unparse(self._base_.args[0])
+    
+    
+    def getName(self):
+        return ast.unparse(self._base_.targets[0].id)
+    
+    
+    def list(self):
+        return ast.unparse(self._keywordArgsToAssignments())
+        return f"{self.name} = {self.toString()})"
+
+

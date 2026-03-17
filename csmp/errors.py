@@ -24,6 +24,11 @@ class PrecompilerError(ModelError):         # raised during pre-compilation
         result.append(f"{'^':>{error.offset}}")
         return result
 
+    @classmethod
+    def fromSyntaxError(cls, error: SyntaxError, preambule: str = None):
+        msg = "\n".join(cls.rewriteSyntaxError(error, preambule))
+        return cls(msg)
+    
 
 # ---- specific exceptions ----------------------------------------------------
 

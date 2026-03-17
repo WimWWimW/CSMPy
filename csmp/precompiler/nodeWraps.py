@@ -4,6 +4,13 @@ from csmp.precompiler import lister
 
 
 class NodeWrap:
+    ''' wrapper-object to make an ast-statement easier to handle.
+    
+    This used to be the base class of a whole family of wraps for statement nodes
+    fulfilling a specific role. But Keywords now offers a cleaner approach to the 
+    same purpose.    
+    '''
+    
     objects = []
     
     remarkCallback = lambda *args, **kwargs: None # one assignment to rule all

@@ -1,26 +1,43 @@
+# @PydevCodeAnalysisIgnore
 import lib.ast_comments as ast
 import copy
 
 from csmp.errors import MacroError
-from lib.smallUtilities import unindent
+from lib.smallUtilities import unindent, dump
 
 
 
 
 class Macro:
-
+    ''' MacroDeclarationWrap
+    
+    Generated from a MACRO("...")-call where the macro itself is in the 
+    multiline string argument. This string is parsed as a new ast-tree.
+    The in and out going macro arguments are extracted from the declaration:
+    
+    out1, out2, ..., outn = MACRO(in1, in2, ..., inn)
+    
+    
+    Before injection, these placeholder names are replaced with the 
+    invoking arguments.
+    '''
+    
     def __init__(self, node):
         self.baseLine = node.lineno
-        if len(node.value.args) != 1:
-            raise MacroError(f"MACRO should have exactly one (string-type) argument (line {self.baseLine})")
-        self.source     = unindent(node.value.args[0].value)
-        try:
-            self.code       = ast.parse(self.source)
-        except SyntaxError as e:
-            text = e.text.replace("\n", "")
-            line = self.__offsetLineno(e)
-            raise MacroError(f"syntax error in macro-declaration (line {line}): {text}")
+        if isinstance(node, ast.Expr):
+            if len(node.value.args) != 1:
+                raise MacroError(f"MACRO should have exactly one (string-type) argument (line {self.baseLine})")
+            self.source     = unindent(node.value.args[0].value)
+            try:
+                self.code       = ast.parse(self.source)
+            except SyntaxError as e:
+                text = e.text.replace("\n", "")
+                line = self.__offsetLineno(e)
+                raise MacroError(f"syntax error in macro-declaration (line {line}): {text}")
         
+        elif isinstance(node, ast.FunctionDef):
+            self.code = node
+            
         declaration     = self.code.body.pop(0) # i.e. the first line
         self.name       = self._extractFunctionName(declaration)
         self.inputs     = self._extractInputNames(declaration)
@@ -96,8 +113,20 @@ class Macro:
     
 class MacroSubstituter(ast.NodeTransformer):
     '''
-    Collect all MACRO-declarations from an ast tree
-    and replace their invocations.
+    Collect all MACRO-declarations from an ast tree and replace their invocations.
+    
+    In _processDeclaration  the macro definition statements are parsed and a Macro-object is
+    created for each of them. In _processInvocation calls to the defined macor are parsed and 
+    the matching Macro-object injects its code in place. 
+
+    The declaration block starts with:
+    out1, out2, ..., outn = MACRONAME(in1, in2, ..., inn)
+    as its first line.
+    
+    The invocation reads
+    out1, out2, ..., outn = MACRONAME(in1, in2, ..., inn)
+    where the Macro-object substitutes the names of the in and out variables.
+    
     '''
     def __init__(self):
         super().__init__()
@@ -106,14 +135,22 @@ class MacroSubstituter(ast.NodeTransformer):
     def run(self, tree):
         # since macros must be defined before the model,
         # both processing staps can be performed in on go:
-        self.visit_Expr     = self._processDeclaration_
-        self.visit_Assign   = self._processInvocation_
-
+        self.visit_Expr         = self._processStringbasedDeclaration_
+        self.visit_FunctionDef  = self._processFunctionbasedDeclaration_
+        self.visit_Assign       = self._processInvocation_
         self.codebook.clear()
         self.visit(tree)
 
     
-    def _processDeclaration_(self, node):
+    def _processFunctionbasedDeclaration_(self, node):
+        if (node.name == "MACRO"):
+            declaration = Macro(node)
+            self.codebook[declaration.name] = declaration
+            return None
+        return node
+
+
+    def _processStringbasedDeclaration_(self, node):
         if isinstance(node.value, ast.Call) and (node.value.func.id == "MACRO"):
             declaration = Macro(node)
             self.codebook[declaration.name] = declaration
@@ -124,7 +161,8 @@ class MacroSubstituter(ast.NodeTransformer):
     def _processInvocation_(self, node):
         if isinstance(node.value, ast.Call):
             # if this function bears the name of a known MACRO:
-            macro = self.codebook.get(node.value.func.id, False)
+            name  = node.value.func.id
+            macro = self.codebook.get(name, False)
             if macro:
                 # we're allowed to replace our extracted node 
                 # with a list of nodes that have been translated
@@ -138,6 +176,8 @@ class MacroSubstituter(ast.NodeTransformer):
 
 
 if __name__ == '__main__':
+    import inspect
+    
     source = '''
 MACRO("""
     X, DXDT = EXPONENTIAL(X0, A, B)
@@ -149,7 +189,33 @@ MACRO("""
 EX1, R1 = EXPONENTIAL(10., 0.1, 5) 
     '''
 
-    tree = ast.parse(source)
+    
+    def code():
+        def MACRO():
+            X, DXDT  = EXPONENTIAL(X0, A, B)  
+            X        = INTGRL(X0, DXDT)  
+            RATE     = A * (X - B)
+            DXDT     = RATE    
+        
+        EX1, R1 = EXPONENTIAL(10., 0.1, 5)
+    
+    
+    def getTree(obj):        
+        source = inspect.getsource(obj)
+        source = unindent(source)
+        tree = ast.parse(source)
+        tree.body = tree.body[0].body
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node    
+        return tree
+
+
+    if False:
+        tree = getTree(code)
+    else:
+        tree = ast.parse(source)
+        
     macros = MacroSubstituter()
     macros.run(tree)
     

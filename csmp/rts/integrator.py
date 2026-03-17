@@ -98,7 +98,7 @@ class Integrator:
             
 
     def copyArray(self, arr):
-        return numpy.array(arr, copy = True)
+        return numpy.array(arr, copy = True)  # @UndefinedVariable
     
     
     def copyStates(self):
@@ -106,7 +106,7 @@ class Integrator:
     
     
     def copyRates(self):
-        return numpy.array(self.rates, copy = True)
+        return numpy.array(self.rates, copy = True)  # @UndefinedVariable
     
     
     def eulerSteps(self, time, delt, count):

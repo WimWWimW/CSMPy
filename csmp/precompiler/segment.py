@@ -1,9 +1,8 @@
-import lib.ast_comments as ast
-from enum import Enum
-
-from ..errors import SegmentationError
-from .nodeWraps import NodeWrap
 import re
+from enum import Enum
+import lib.ast_comments as ast
+from csmp.errors import SegmentationError
+from csmp.precompiler.nodeWraps import NodeWrap
 
 
 class SegmentLabel(Enum):

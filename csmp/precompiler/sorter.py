@@ -1,6 +1,6 @@
 import lib.ast_comments as ast
-from .. import functions
-from .. import keywords
+from csmp import functions
+from csmp.precompiler import keywords
 from csmp.errors import PrecompilerError
 from lib.smallUtilities import flatten, dump, printNode
 

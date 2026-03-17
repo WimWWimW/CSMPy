@@ -22,6 +22,7 @@ class SimulationModelTemplate(CSMP_Model):
         ':functions:'
         ':generators:'
         ':initStates:'
+        ':memoryObjects:'
         ':systemParams:'
         
         

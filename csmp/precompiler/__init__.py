@@ -9,7 +9,6 @@ from lib.smallUtilities import flatten, dump
 
 from csmp.customTypes import VarType
 from csmp.errors import PrecompilerError, SegmentationError
-from csmp.keywords import CSMP_Function
 from csmp.precompiler.lister import Lister, WARNING
 from csmp.precompiler.loader import ModelLoader
 from csmp.precompiler.nodeCollector import ImportCollector, KeywordCollector
@@ -19,7 +18,8 @@ from csmp.precompiler.sorter import Sorter
 from csmp.precompiler.template import TemplateBuilder
 from csmp.precompiler.keywordsBase import KeywordLabels
 from csmp.precompiler.macros import MacroSubstituter
-from templates.simulationModelTemplate import SimulationModelTemplate
+# from templates.simulationModelTemplate import SimulationModelTemplate
+from lib.settings import globalConfig
 
 
 
@@ -27,7 +27,6 @@ class Precompiler:
 
     def __init__(self, options):
         self.options  = options
-        self.template = SimulationModelTemplate
         self.reset()
 
     
@@ -44,6 +43,7 @@ class Precompiler:
         self.processCode()
         self.results    = Lister().count()
         self.succes     = (self.results[0] == 0)
+        self.writeSummary()
         
         
     def reset(self):
@@ -73,6 +73,7 @@ class Precompiler:
             self.writeCurrentSource(sorted = False)
             self.sort()
             self.writeCurrentSource(sorted = True)
+            self._writeOutput()
             return True
         except PrecompilerError:
             Lister().addError("parsing of the source code failed", Lister.FINAL, "processCode")
@@ -137,9 +138,9 @@ class Precompiler:
             statement = NodeWrap(node)
             line      = statement.getLineNumber()
             for segment in self.segments:
+                if isinstance(node, ast.Comment):
+                    break
                 if segment.contains(line):
-                    if isinstance(node, ast.Comment):
-                        return
                     segment.appendStatement(statement)
                     self._validateStatement(statement)
                     break
@@ -182,13 +183,13 @@ class Precompiler:
             
             
     def _writeOutput(self):
-        self._writeFile(self.writeSummary,  self.options.summary["scrn"],  self.options.summary["file"], ".summary")    
-        self._writeFile(self.writeListFile, self.options.listFile["scrn"], self.options.listFile["file"], ".list")    
         self._writeFile(self.writeTemplate, False, True, ".py")    
+        self._writeFile(self.writeListFile, self.options.listFile["scrn"], self.options.listFile["file"], ".list")    
+        self._writeFile(self.writeSummary,  self.options.summary["scrn"],  self.options.summary["file"], ".summary")    
             
             
     @Lister.withContextError
-    def writeTemplate(self, file = sys.stdout, template = SimulationModelTemplate, builder = None):
+    def writeTemplate(self, file = sys.stdout):
         
         def common():
             variables = self.segments[SegmentLabel.INITIAL].getAssignments()
@@ -196,9 +197,12 @@ class Precompiler:
             node = ast.parse(s)
             return [node.body[0]] if node.body else []
 
-        builder     = TemplateBuilder(template) if builder is None else builder
+        template    = Path(self.options.template)
+        comment     = self.options.templateComment
+        placeHolder = self.options.templatePlcHldr
+        builder     = TemplateBuilder(template, segmentComment = comment, placeholders = placeHolder)
+        
         builder.replace(KeywordLabels.common, common())
-
         builder.replace(KeywordLabels.initial,    [w.node for w in self.segments.initial.getItems()],  False)
         builder.replace(KeywordLabels.dynamic,    [w.node for w in self.segments.dynamic.getItems()],  False)
         builder.replace(KeywordLabels.terminal,   [w.node for w in self.segments.terminal.getItems()], False)

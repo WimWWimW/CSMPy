@@ -6,8 +6,6 @@ from csmp.precompiler.nodeWraps import NodeWrap
 
 
 
-
-
 class KeywordCollector(ast.NodeTransformer):
     
     def __init__(self):
