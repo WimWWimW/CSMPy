@@ -13,7 +13,7 @@ that the latter can be changed, automatically, between successive runs
 of the same model structure. 
 
 CONSTANT                                                                          
---------
+~~~~~~~~
 
 * CSMP::
 
@@ -40,7 +40,7 @@ The constant declarations are sorted and they may refer to each other::
     CYCLE = PARAM(2 * PI)
     
 PARAM
----------
+~~~~~~~~
 * CSMP::
 
     PARAMETER PARI = 4.98, X=(5.0, 5.5, 3*2.0)                         
@@ -67,7 +67,7 @@ They  may refer to constants and to each other::
     CYCLE = PARAM(2 * PI)
     
 INCON
----------
+~~~~~~~~
 * CSMP::
 
     INCON       IC = 9.92, AA = -1.2, AS = 1.79E-3                        
@@ -94,12 +94,12 @@ Initial constants get their value after the CONSTANTs and PARAMS. Therefore, the
     CYCLE = PARAM(2 * PI)
     
 FUNCTION
---------
-*CSMP::
+~~~~~~~~
+* CSMP::
 
     FUNCTION REDFT=0.,1.,0.2,1.,0.25,0.,0.5,0
     
-*CSMPy::
+* CSMPy::
 
     REDFT = FUNCTION(0., 1., 0.2, 1., 0.25, 0., 0.5, 0)
     REDFT = FUNCTION((0., 1.), (0.2, 1.), (0.25, 0.), (0.5, 0))
@@ -111,11 +111,11 @@ FUNCTION defines a data table that is used by AFGEN and NLFGEN functions::
     
 
 OVERLAY
---------
+~~~~~~~~
 As to date, OVERLAY has not yet been implemented.
 
 TABLE
---------
+~~~~~~~~
 As to date, TABLE has not yet been implemented.
 
 
@@ -132,6 +132,71 @@ statements may be changed as readily as the data statements. Most of the
 control statements may appear in any order and may be intermixed with 
 structure and data statements 
 
+INITIAL, DYNAMIC, TERMINAL
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+* CSMP::
+
+    DYNAMIC
+        <model code>
+
+* CSMPy::
+
+    # --- DYNAMIC ---
+
+Unlike FORTRAN, labels do not exist in Python. Therefore, in CSMPy
+the main segment labels are mimicked by comment lines. By default
+main segment labels are recognized by their format::
+
+    # --- <label> ---
+
+The format may be changed in csmp.config, however, the # that signals
+a Python comment line is compulsory.
+
+MACRO
+~~~~~~~~
+Macros are code blocks that are substituted before the procompiler
+starts processing the code. Macros are not function calls: if the 
+macro is invoked e.g. three times, than the lines of the macro are
+inserted three times at the positions of the invocations. The lines
+will be processed and sorted like normal lines of model code.
+However, the macro-parameters are substituted with the actual arguments
+supplied by the invocation.
+
+* CSMP::
+
+    (declaration)
+    MACRO       Xl, X2 = FCN(INI, IN2, IN3)     
+        ...
+    ENDMAC
+
+    (invocation)
+    VAR1, VAR2 = FCN(P1, P2, P3)
+
+There are two ways to define a macro in CSMPy. The first one has the macro code
+in a multi-line string argument; The second one uses the function def-syntax:
+
+* CSMPy::
+
+    MACRO("""
+        X, DXDT = EXPONENTIAL(X0, A, B)
+        X        = INTGRL(X0, DXDT)
+        RATE     = A * (X - B)
+        DXDT     = RATE
+        """)
+    
+    def MACRO():
+        X, DXDT  = EXPONENTIAL(X0, A, B)  
+        X        = INTGRL(X0, DXDT)  
+        RATE     = A * (X - B)
+        DXDT     = RATE    
+
+Using the macro is identical in either way::
+
+    EX1, R1 = EXPONENTIAL(10., 0.1, 5) 
+
+
+other CSMP-statements
+~~~~~~~~~~~~~~~~~~~~~
 
 ======================================== ========================================
 keyword                                     status
@@ -142,12 +207,6 @@ MEMORY      RHO(9), PHI(3), GADGET
 HISTORY     PARI(4), PAR7(13)
 STORAGE     IC( 6), PARAMS(30)              probably obsolete
 DECK
-MACRO       Xl, X2 = FCN(INI, IN2, IN3)     implemented
-    ...
-ENDMAC
-INITIAl                                     implemented
-DYNAMIC                                     implemented
-TERMINAL                                    implemented
 END                                         ignored by the precompiler
 CONTINUE
 SORT                                        implemented            
