@@ -18,23 +18,32 @@ from csmp.precompiler.statementBase import Statement, StatementStatus, Statement
 from csmp.precompiler.lister import Lister
 from csmp import errors
 from unicodedata import category
+from pathlib import pwd
 
 def symbols():
     return [n for n in globals() if n == n.upper() and not n.startswith("_") ]
 
 
 class CONSTANT(ConstantDeclaration):
+    # syntax: <name> = CONSTANT(<value>)
     cat = StatementCategory.constants
 
+
+
 class PARAM(ConstantDeclaration):
+    # syntax: <name> = CONSTANT(<value>)
     cat = StatementCategory.parameters
 
+
+
 class INCON(ConstantDeclaration):
+    # syntax: <name> = CONSTANT(<value>)
     cat = StatementCategory.incons
 
 
 
 class INTGRL(AssigningStatement):
+    # syntax: <name> = INTGRL(<initial>, <rate>)
 
     def __init__(self, node):
         super().__init__(node)
@@ -49,16 +58,17 @@ class INTGRL(AssigningStatement):
             StatementCategory.update:
                 self._nodeFromString(f"self.setCurrentRate({self.index}, {rate})")
                 }
-        
-        
+
+
+
 class FUNCTION(AssigningStatement):
+    # syntax: <name> = FUNCTION(<data>)
 
     def __init__(self, node):
         super().__init__(node)
         self.transformations = {
             StatementCategory.functions:
                 self._nodeFromString(f"self.createCsmpFunction({self.index}, '{self.name}', {self._allArgs()})")}
-
 
 
         
@@ -93,37 +103,46 @@ class FunctionGenerator(AssigningStatement):
 
 
 class AFGEN(FunctionGenerator):        
+    # syntax: ... = AFGEN(<function>, <value>, **kwargs)
     pass
-        
+
+
+
 class NLFGEN(AFGEN):        
+    # syntax: ... = NLFGEN(<function>, <value>, **kwargs)
     # formally this is not a statement but a function. But it behaves like a statement
     # in that it has to be predefined. Also it's got to be linked to its FUNCTION
     # object before writing the runnable model.
     pass
-    
-    
-    
+
+
 
 class TABLE(Statement):
+    # syntax: TABLE()
     ...
 
 
+
 class OVERLAY(Statement):
+    # syntax: OVERLAY()
     status  = StatementStatus.not_supported
 
 
 
-# CONTROL statements:
 class RENAME(Statement):
+    # syntax: RENAME(TIME = 'TIME', DELT = 'DELT', DELMIN = 'DELMIN', FINTIM = 'FINTIM', PRDEL = 'PRDEL', OUTDEL = 'OUTDEL')
     ...
-    
+
+
 
 class FIXED(Statement):
+    # syntax: N/S
     status  = StatementStatus.obsolete
 
 
 
 class MEMORY(AssigningStatement):
+    # syntax: <names> = MEMORY(<function>, <initial>)
     '''
     CSMPy syntax:
     
@@ -160,17 +179,21 @@ class MEMORY(AssigningStatement):
 
 
 class HISTORY(MEMORY):
+    # syntax: <names> = HISTORY(<function>, <initial>)
     pass
 
 
 
 class STORAGE(Statement):
+    # syntax: (obsolete)
     status  = StatementStatus.obsolete
 
 
 
 class DECK(Statement):
+    # syntax: DECK()
     status  = StatementStatus.not_supported
+
 
 
 class __OtherStatement__(Statement):
@@ -184,76 +207,123 @@ class NOSORT(__OtherStatement__): pass
 
 
 class END(Statement):
+    # syntax: END()
     status  = StatementStatus.ignored
+
 
 
 class CONTINUE(Statement):
+    # syntax: CONTINUE()
     status  = StatementStatus.not_supported
+
 
 
 class PROCEDURE(Statement):
+    # syntax: N/S
     status  = StatementStatus.obsolete
+
 
 
 class STOP(Statement):
+    # syntax: STOP()
     status  = StatementStatus.ignored
+
 
 
 class ENDJOB(Statement):
+    # syntax: ENDJOB()
     status  = StatementStatus.ignored
 
 
-# ENDJOB STACK
+
 class COMMON(Statement):
+    # syntax: N/S
     status  = StatementStatus.obsolete
 
 
-# COMMON MEM  
+
 class DATA(Statement):
+    # syntax: DATA()
     status  = StatementStatus.obsolete
+
 
 
 class TIMER(ExecutionControl):
+    # syntax: TIMER(FINTIM, DELT=-1, DELMIN=-1, PRDEL=-1, OUTDEL=-1)
     pass
+
+
 
 class FINISH(ExecutionControl):
+    # syntax: FINISH(<conditions>)
     pass
 
+
+
 class RELERR(Statement):
+    # syntax: RELERR()
     ...
 
+
+
 class ABSERR(Statement):
+    # syntax: ABSERR()
     ...
+
 
 
 class METHOD(ExecutionControl):
+    # syntax: METHOD(<mehod>)
     pass
+
 
 
 class TITLE(ExecutionControl):
+    # syntax: TITLE(<string>)
     pass
 
-# Output control statements:
+
+
 class PRINT(Varlist):
+    # syntax: PRINT(<varlist>)
     pass
+
+
 
 class OUTPUT(Statement):
+    # syntax: OUTPUT(<varlist>)
     pass
 
+
+
 class PREPARE(Statement):
+    # syntax: PREPARE(<varlist>)
     ...
+
+
 
 class PRTPLOT(Statement):
+    # syntax: PRTPLOT(<varlist>)
     ...
+
+
 
 class LABEL(Statement):
+    # syntax: LABEL(<string>)
     ...
+
+
 
 class RANGE(Statement):
+    # syntax: RANGE(<varlist>)
     ...
 
+
+
 class RESET(Statement):
+    # syntax: RESET()
     status  = StatementStatus.not_supported
+
 
 
 # ----------------------------------------------------------------------------------------------
@@ -269,9 +339,7 @@ registerAndInitializeStatements()
 
 
 if __name__ == '__main__':
-    import re, inspect
     
     for c in Statement.classes.values():
         print("%-10s" % c.className(1), "-->", c.status.name)
-        
     

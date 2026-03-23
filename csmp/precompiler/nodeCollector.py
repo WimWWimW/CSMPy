@@ -9,14 +9,35 @@ from csmp.precompiler.statementBase import Statement, ConstantDeclaration
 
 class StatementCollector(ast.NodeTransformer):
     
+    class ConstantExpander(ast.NodeTransformer):
+        
+        def visit_Expr(self, node):
+            if ("value" in node._fields) and isinstance(node.value, ast.Call):
+                statementClass = Statement[node.value.func.id]
+                if issubclass(statementClass, ConstantDeclaration):
+                    return statementClass.breakUp(node.value)
+            return node
+        
+            
+    
+    
     def __init__(self):
         super().__init__()
         self.statements = []
         # marker node:
-        self.delendus   = ast.parse("0").body[0]
+        self.delendus   = ast.parse("None").body[0]
 
+
+    def visit_Call(self, node):
+        return self.convertStatements(node)
+        
     
     def run(self, tree):
+        # convert compount constant, param, incon to simple ones:
+        xpandr = self.ConstantExpander()
+        xpandr.visit(tree)
+
+        # convert Statements:
         self.visit(tree)
         
         # it is hard to remove parent nodes while in vistit, so instead
@@ -27,69 +48,18 @@ class StatementCollector(ast.NodeTransformer):
             
         return self.statements
         
-            
-    def addStatement(self, statement: Statement):
-        self.statements.append(statement)
-        return statement
     
-    
-    def getTargetName(self, node):
-        if not ("targets" in node._fields):
-            raise errors.PrecompilerError("syntax not understood")
-        if not isinstance(node.targets[0], ast.Name):
-            raise errors.PrecompilerError("cannot unpack CSMP-statement")
-        return node.targets[0].id
-    
-    
-    def match(self, node):    
-        if ("value" in node._fields) and isinstance(node.value, ast.Call):
-            statementClass = Statement[node.value.func.id]
-            return statementClass
-
-
-    
-    def breakUpCompoundStatement(self, node):
-        # compound constants cannot be sorted.
-        # best to split them right away:
-        result    = []
-        statement = Statement(node)
-        stmtClass = Statement[statement.fName]
-        for name, value in statement.kwargs:
-            newNode = statement._nodeFromString(f"{name} = {statement.fName}({value})")
-            self.addStatement(stmtClass(newNode.value))
-            result.append(newNode)
-        return None
-            
-            
-    def visit_Expr(self, node):
-        statementClass = self.match(node)
-        if statementClass is not None:
-            if  issubclass(statementClass, ConstantDeclaration):
-                return self.breakUpCompoundStatement(node.value)
-            else:
-                statement = statementClass(node.value)
-                self.addStatement(statement)
-                return statement.transformInplace()
-        return node
-        
-
-    def visit_Call(self, node):
+    def convertStatements(self, node):
         self.generic_visit(node)
         statement = Statement.get(node)
         if statement is not None:
-            self.addStatement(statement)
+            self.statements.append(statement)
             subst = statement.inplace()
             if subst is None:
                 # mark parent for removal:
                 return self.delendus
             else:
                 return subst
-        return node
-
-
-    def removeDeleted(self, node):
-        if hasattr(node, "deleted") and node.deleted == True:
-            return None
         return node
 
 

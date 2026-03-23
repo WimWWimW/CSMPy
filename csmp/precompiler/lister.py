@@ -93,7 +93,6 @@ class Lister(metaclass = Singleton):
             for l in sorted(messages):
                 printRemarks(l)
                     
-                    
           
     def count(self):
         errors = warnings = 0

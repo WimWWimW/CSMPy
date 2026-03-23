@@ -106,6 +106,12 @@ class StatementClass(NodeWrap): # TODO doubtfully distinct from Statement
         cap = fmt.get(format, str)
         return cap(cls.__name__)    
 
+    
+    @classmethod
+    def symbols(cls):
+        return [n for n in cls.classes.keys()]
+    
+    
     @classmethod
     def initialize(cls):
         # register class:
@@ -175,9 +181,6 @@ class Statement(StatementClass):
         self.sync(result)
         return result
 
-    
-    # def _varlist(self):
-    #     return ",".join([f"'{arg.id}'" for arg in self._base_.args])
 
     def inplace(self):
         if self.status == StatementStatus.not_supported:
@@ -219,14 +222,6 @@ class BasicStatement(Statement):
 
 
            
-class Varlist(BasicStatement):
-    
-    def transformSystemParams(self):
-        args = self._varlist() 
-        return self._nodeFromString(f"self.set{self.className(1)}({args})")
-
-
-
 class AssigningStatement(Statement):
 
     def __init__(self, node, outputs = 1):
@@ -282,6 +277,16 @@ class ConstantDeclaration(AssigningStatement):
     def getName(self):
         return self.name
     
+    @classmethod
+    def breakUp(cls, node):
+        # compound constants cannot be sorted.
+        # best to split them:
+        result    = []
+        statement = Statement(node)
+        for name, value in statement.kwargs:
+            newNode = statement._nodeFromString(f"{name} = {statement.fName}({value})")
+            result.append(newNode.value)
+        return result    
     
 
 class ExecutionControl(Statement):
@@ -294,6 +299,22 @@ class ExecutionControl(Statement):
                 }
             
             
+class Varlist(BasicStatement):
+    '''
+    pass arguments as quoted variable names
+    '''
+    
+    def __init__(self, node):
+        super().__init__(node)
+        args = ",".join([f"'{arg}'" for arg in self.args])
+        self.transformations = {
+            StatementCategory.systemParams:
+                self._nodeFromString(f"self.set{self.className(1)}({args})")
+                }
+    
+
+
+
             
             
             

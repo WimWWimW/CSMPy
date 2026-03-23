@@ -13,6 +13,10 @@ from csmp.rts import CSMP_Model
 
 
 import warnings,sys, inspect
+from lib.settings import Settings
+from lib.options import Options
+from lib import options
+from csmp.precompiler import Precompiler
 
 def simpleWarning(message, category, filename, lineno, line=None):
     return f"{category.__name__}: {message}\n"
@@ -46,3 +50,47 @@ if IS_RELEASE:
 else:
     sys.tracebacklimit = 300
     
+
+
+
+class CsmpOptions(Options):
+    
+    def __init__(self, settings):
+        super().__init__("")
+        self.settings = settings
+        self.listFile = self._getFileOptions("precompiler", "listFile")
+        self.summary  = self._getFileOptions("precompiler", "summary")
+        self.sorted   = self._getFileOptions("precompiler", "sorted")
+        self.unsorted = self._getFileOptions("precompiler", "unsorted")
+        self.debugSeg = self._getFileOptions("precompiler", "debugSeg")
+        
+        self.template        = self.settings.get("templates", "template")
+        self.templateComment = self.settings.get("templates", "segmentComment")
+        self.templatePlcHldr = self.settings.get("templates", "placeholder")
+            
+
+    def _getFileOptions(self, section, key):
+        setting = self.settings.get(section, key, "").replace(", ", ",").split(',')
+        return dict(scrn = "show" in setting,
+                    file = "save" in setting)
+
+
+class CSMPy:
+    
+    def __init__(self):
+        self.options  = CsmpOptions(Settings("./", "csmp.config"))
+        self.compiled = False
+        self.complete = False
+    
+    def compile(self, model):
+        self.compiled = False
+        self.complete = False
+        mdl = Precompiler(self.options)
+        mdl.compile(model)
+        self.compiled = mdl.succes
+        self.model    = mdl
+        
+        
+        
+        
+        

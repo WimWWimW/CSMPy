@@ -17,8 +17,28 @@ from csmp.precompiler.sorter import Sorter
 from csmp.precompiler.template import TemplateBuilder
 from csmp.precompiler.statementBase import StatementCategory, Statement
 from csmp.precompiler.macros import MacroSubstituter
+from csmp.precompiler.output import WriteRunnable, WriteListfile, WriteSummary
 
 
+class CSMP_Source:
+    
+    def __init__(self, modelFile: str|Path):
+        self.modelFile = Path(modelFile)
+        self.reset()
+
+    def reset(self):
+        self.imports        = []
+        self.init           = []
+        self.segments       = ModelSegments(ast.parse("#"))
+        self.statementNodes = defaultdict(list)
+        
+    consts  = property(lambda p: p.statementNodes[StatementCategory.constants])
+    params  = property(lambda p: p.statementNodes[StatementCategory.parameters])
+    incons  = property(lambda p: p.statementNodes[StatementCategory.incons])
+    states  = property(lambda p: p.statementNodes[StatementCategory.initStates])
+    fundefs = property(lambda p: p.statementNodes[StatementCategory.functions])
+        
+        
 
 class Precompiler:
 
@@ -148,7 +168,7 @@ class Precompiler:
                     break
             else: # if not assigned ...
                 if line < self.segments.initial.start:
-                    self.init.append(statement)
+                    self.init.append(statement) # into the black hole ...
                 else:
                     statement.addRemark("spurious line", WARNING)
                     raise SegmentationError("line %d could not be assigend to a model segment" % line)
@@ -185,9 +205,23 @@ class Precompiler:
             
             
     def _writeOutput(self):
-        self._writeFile(self.writeTemplate, False, True, ".py")    
-        self._writeFile(self.writeListFile, self.options.listFile["scrn"], self.options.listFile["file"], ".list")    
-        self._writeFile(self.writeSummary,  self.options.summary["scrn"],  self.options.summary["file"], ".summary")    
+        w = WriteRunnable(self.loader.folder, self.options)
+        w.writeToFile("model.py", self.segments, self.statementNodes)
+        w = WriteListfile(self.loader.folder, self.options)
+        if self.options.listFile["scrn"]:
+            w.writeToConsole(self.loader)
+        if self.options.listFile["file"]:
+            w.writeToFile("model.list", self.loader)    
+        
+        w = WriteSummary(self.loader.folder, self.options)
+        if self.options.summary["scrn"]:
+            w.writeToConsole(self.loader, (self.consts, self.params, self.incons))
+        if self.options.summary["file"]:
+            w.writeToFile("summary.txt", self.loader, (self.consts, self.params, self.incons))    
+        
+        # self._writeFile(self.writeTemplate, False, True, ".py")    
+        # self._writeFile(self.writeListFile, self.options.listFile["scrn"], self.options.listFile["file"], ".list")    
+        # self._writeFile(self.writeSummary,  self.options.summary["scrn"],  self.options.summary["file"], ".summary")    
             
             
     @Lister.withContextError
