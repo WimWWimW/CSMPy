@@ -8,64 +8,62 @@ from csmp.precompiler.segment import SegmentLabel
 from csmp.precompiler.statementBase import StatementCategory
 from csmp.precompiler.template import TemplateBuilder
 import itertools
+from csmp.precompiler.nodeWraps import NodeWrap
 
 
 class PrecompilerOutput:
+    '''
+    Helper class for saving output of the precompiler
+    '''
     
-    def __init__(self, path, options):
-        self.options = options
-        self.path = Path(path)
+    def __init__(self, options, model):
+        self.options    = options
+        self.model      = model
+        self.path       = Path(model.loader.folder)
     
-    
-    def writeToFile(self, file: str | Path, *args, **kwargs):
-        fileName = self.path / file
-        with fileName.open("w") as f:
-            self.write(f, *args, **kwargs)
-        print(f"created file {fileName}")
-    
-    
-    def writeToConsole(self, *args, **kwargs):
-        self.write(sys.stdout, *args, **kwargs)
-    
-    
-    def write(self, file, *args, **kwargs):
-        ...
 
+    def _getFile(self, file):
+        if not file:
+            return sys.stdout
+        
+        if isinstance(file, str) or isinstance(file, Path):
+            return (self.path / file).open("w")
+        
+        return file
     
-class WriteListfile(PrecompilerOutput):
     
     @Lister.withContextError
-    def write(self, file, loader, summary = False):
-        Lister().report(loader.getSource(), file = file, onlyMarkedLines = summary)
+    def writeListfile(self, file = "", summary = False):
+        file = self._getFile(file)
+        Lister().report(self.model.loader.getSource(), file = file, onlyMarkedLines = summary)
         print("%8d error(s)\n%8d warning(s)" % Lister().count(), file = file)
         
-        
-        
-class WriteSummary(WriteListfile):
         
     def _getConstantValues(self, constants):
         '''
         Evaluate the hard-defined values of constants, parameters and incons.
         :return: dict
         '''
-        constants = self.consts + self.params + self.incons
         tmpSource = "def dummy(): ...\n" + "\n".join([s.toString() for s in constants])
         result    = {}
         exec(tmpSource, locals = result)
         return result 
             
         
-    def writeSummary(self, file, loader, constants):
-        modelFileName       = self.loader.file
-        errors, warnings    = self.results
-        completed           = "succesfully completed" if self.succes else "failed"
-        stateVars           = ", ".join([v.name for v in sorted(self.states, key = lambda n: n.name)])
+    @Lister.withContextError
+    def writeSummary(self, file = ""):
+        file = self._getFile(file)
+        modelFileName       = self.model.loader.file
+        errors, warnings    = Lister().count()
+        completed           = "succesfully completed" if errors == 0 else "failed"
+        stateVars           = ", ".join([v.name for v in sorted(self.model.states, key = lambda n: n.name)])
         
         print("\n\n", file = file)
         print(f"Parsing of {modelFileName} {completed} with {errors} error(s) and {warnings} warning(s).\n", file = file)
         print(f"state variables: {stateVars}\n", file = file)
         
-        consts = self._getConstantValues(itertools.chain(constants))
+        constants = (self.model.consts, self.model.params, self.model.incons)
+        consts = self._getConstantValues(flatten(constants))
         format = lambda coll: ([" %-8s = %-12s " % (k.name, consts.get(k.name, -99999)) for k in sorted(coll, key = lambda n: n.name)])
         items  = tuple([format(c) for c in constants])
         
@@ -73,16 +71,15 @@ class WriteSummary(WriteListfile):
         for values in itertools.zip_longest(*items, fillvalue = " "*25):
             print(*values, file = file)
             
-        super().write(file, loader, True)
+        self.writeListfile(file, summary = True)
         print("\n\n", file = file)
                 
             
     
-class WriteRunnable(PrecompilerOutput):
-    
     @Lister.withContextError
-    def write(self, file, segments, statements):
-        
+    def writeRunnable(self, file = ""):
+        file = self._getFile(file)
+    
         def common():
             variables = segments[SegmentLabel.INITIAL].getAssignments()
             s = "global %s" % ", ".join(variables) if variables else "# (nothing to do)" 
@@ -94,18 +91,50 @@ class WriteRunnable(PrecompilerOutput):
         placeHolder = self.options.templatePlcHldr
         builder     = TemplateBuilder(template, segmentComment = comment, placeholders = placeHolder)
         
+        segments = self.model.segments
         builder.replace(StatementCategory.common, common())
         builder.replace(StatementCategory.initial,    [w.node for w in segments.initial.getItems()],  False)
         builder.replace(StatementCategory.dynamic,    [w.node for w in segments.dynamic.getItems()],  False)
         builder.replace(StatementCategory.terminal,   [w.node for w in segments.terminal.getItems()], False)
 
         for cat in StatementCategory: # this loops through _all_ cats and destroys any remaining placeholders
-            items       = statements[cat]
+            items       = self.model.statements[cat]
             transformed = flatten([item.transform(cat) for item in items])
             builder.replace(cat, transformed, True)
 
         builder.write(file)
 
+        
+    @Lister.withContextError
+    def writeCurrentSource(self, file = ""):
+        file = self._getFile(file)
+
+        def output(label, items):
+            print("\n"+'-'*10, label, '-'*20, file=file)
+            for item in items:
+                print(item, file=file)
+            
+        for lbl in [StatementCategory.functions,
+                    StatementCategory.generators,
+                    StatementCategory.initStates,
+                    StatementCategory.constants,
+                    StatementCategory.parameters,
+                    StatementCategory.systemParams,
+                    StatementCategory.incons, 
+                    StatementCategory.initial, 
+                    StatementCategory.restoreValues,
+                    StatementCategory.dynamic,
+                    StatementCategory.update,
+                    StatementCategory.terminal]:
+            if   lbl == StatementCategory.initial:
+                items = self.model.segments.initial.getItems()
+            elif lbl == StatementCategory.dynamic:
+                items = self.model.segments.dynamic.getItems()
+            elif lbl == StatementCategory.terminal:
+                items = self.model.segments.terminal.getItems()
+            else:
+                items = [NodeWrap(w.transform(lbl)) for w in self.model.statements[lbl]]  
+            output(lbl.value, items)        
         
 
         
