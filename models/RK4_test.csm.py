@@ -1,7 +1,6 @@
 from csmp import MACRO, TITLE, PARAM, CONSTANT, METHOD, TIMER, OUTPUT, PRINT
 from csmp import EXP, AMIN1
 from csmp import Clip
-from csmp.keywords import INCON
 
 TITLE("RK4 INTEGRATION TEST (2)")
 # dxdt = − t/x with x(0) = 1
@@ -12,8 +11,9 @@ TITLE("RK4 INTEGRATION TEST (2)")
 x    = INTGRL(1., dxdt)
 t    = INTGRL(0., 1.)
 dxdt = -t / x
-TIMER(DELT = 0.1, FINTIM = 1.0, PRDEL = -1)
-
+TIMER(DELT = 0.1, FINTIM = 1.0, PRDEL = 0.1)
+METHOD("RKSFX")
+PRINT(x, format = (18,8))
 # first step:
 #     k1 =   0.0
 #     k2 = − 0.005

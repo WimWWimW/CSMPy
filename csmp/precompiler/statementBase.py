@@ -306,7 +306,7 @@ class Varlist(BasicStatement):
     
     def __init__(self, node):
         super().__init__(node)
-        args = ",".join([f"'{arg}'" for arg in self.args])
+        args = ",".join([f"'{arg}'" for arg in self.args] + self._kwdList(False))
         self.transformations = {
             StatementCategory.systemParams:
                 self._nodeFromString(f"self.set{self.className(1)}({args})")

@@ -170,8 +170,9 @@ class CSMP_Model(ABC):
         self.timer = self.timer.clone(ntc)
     
     
-    def setPrint(self, *varNames):
-        self.printer = Printer(varNames)
+    def setPrint(self, *varNames, format = (0, 0)):
+        self.printer = Printer(varNames, format)
+        
     
     
     def setOutput(self, *varnames):

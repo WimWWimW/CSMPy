@@ -1,7 +1,6 @@
 from csmp import MACRO, TITLE, PARAM, CONSTANT, METHOD, TIMER, OUTPUT, PRINT
 from csmp import EXP, AMIN1
 from csmp import Clip
-from csmp.keywords import INCON
 
 TITLE("INTEGRATION TEST")
 

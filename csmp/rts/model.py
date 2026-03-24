@@ -29,8 +29,9 @@ class Printer:
           too many columns could be passed to subsequent print blocks.
     '''
     
-    def __init__(self, varNames = [], format = "{:>18.4f}"):
-        self.formats  = ["{:>8.4f}"] + [format] * len(varNames) 
+    def __init__(self, varNames = [], format = (0, 0)):
+        fmt = ("{:>%d.%df}" % format) if any(format) else "{:>15.4f}"
+        self.formats  = ["{:>8.4f}"] + [fmt] * len(varNames) 
         self.varNames = ["TIME"   ] + list(varNames)
     
     

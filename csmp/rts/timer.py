@@ -2,6 +2,7 @@ import numpy
 from math import floor, ceil, log2
 from warnings import warn
 from csmp.errors import SimulationError
+from _decimal import Decimal
 
 
 class WaitstateCounter:
@@ -36,6 +37,7 @@ class EventQueue(list):
             finalValue:  time of last event  
             overshoot:   number of extra items as protection against exceeding requests 
         '''
+        d_interval = Decimal(str(interval))
         super().__init__([i * interval for i in range(round(finalValue/interval + overshoot))])
         
             
@@ -115,19 +117,6 @@ class BaseTimer:
         return f"time = {self.time}; delt = {self.delt}; final = {self.finTim}; step = {self.stepCount} [{name}]"
     
             
-    def nextStepSize(self):
-        if self.time > self.finTim:
-            return numpy.nan
-        
-        regularNext = self.time + calcDelt(self.delMax, self._shiftDel)
-        
-        mileStones  = [event for event in 
-                        (self._prnTimes.get(default = self.finTim), 
-                         self._outTimes.get(default = self.finTim),
-                         self.finTim, regularNext) if event > self.time]
-        return min(numpy.array(mileStones) - self.time)  
-    
-    
     def start(self):
         self.stepCount      = 0
         self.time           = 0.0
@@ -150,15 +139,15 @@ class BaseTimer:
     
     
     def simulationComplete(self):
-        return self.time >= self.finTim
+        return self.time >= self.finTim - self.delt /1E6
     
     
     def outputRequired(self):
-        return self.time >= self._outTimes[0]
+        return self.time >= self._outTimes.get(self.finTim) - self.delt /1E6
     
     
     def printRequired(self):
-        return self.time >= self._prnTimes.get(self.finTim)
+        return self.time >= self._prnTimes.get(self.finTim) - self.delt /1E6
     
     
 class FixedStepTimer(BaseTimer):
@@ -203,6 +192,19 @@ class VariableStepTimer(BaseTimer):
         
         return target, shiftExp
         
+    
+    def nextStepSize(self):
+        if self.time > self.finTim:
+            return numpy.nan
+        
+        regularNext = self.time + calcDelt(self.delMax, self._shiftDel)
+        
+        mileStones  = [event for event in 
+                        (self._prnTimes.get(default = self.finTim), 
+                         self._outTimes.get(default = self.finTim),
+                         self.finTim, regularNext) if event > self.time]
+        return min(numpy.array(mileStones) - self.time)  
+    
     
     def _updateDelt(self):
         # store delt as it is now onto _currentDelt
