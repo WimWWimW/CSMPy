@@ -13,7 +13,7 @@ from csmp.customTypes import IntegrationMethod
 
 class NormalFinish(StopIteration):
     def __init__(self, reason):
-        super().__init__(f"$$$ Simulation halted for finish condition {reason}")
+        super().__init__(f"\n$$$ Simulation halted for finish condition {reason}")
                 
 
         
@@ -49,12 +49,13 @@ class CSMP_Model(ABC):
         self.ratesEtc       = {} # local variables from DYNAMIC
         self.stateVars      = {} # by index
         self.stateNames     = {} # by name
+        self.aliases        = {} # inverse of printer.aliases
         self.printer        = Printer()
         self.finished       = False
         
     stateVariables = property(lambda m: m.stateVars.values())
                 
-    def getVariable(self, name, notFound = -99999):
+    def getVariable(self, name, notFound = -99999, checkAliases = True):
         ''' get current value of a named variable 
         args:
             name: name of the variable or state
@@ -63,14 +64,21 @@ class CSMP_Model(ABC):
         result = self.stateNames.get(name)
         if result is not None: 
             return result.value
-        else:
-            return self.ratesEtc.get(name,
-                   self.globals.get(name, notFound)
-                   )
+
+        result = self.ratesEtc.get(name, self.globals.get(name))
+        if result is not None:
+            return result
+        
+        if checkAliases and (name in self.aliases):
+            alias = self.aliases[name]
+            return self.getVariable(alias, notFound, checkAliases = False)
+        
+        return notFound
+
         
 
     def printEvent(self):
-        prVars = dict([(name, self.getVariable(name)) for name in self.printer.varNames])
+        prVars = dict([(name, self.getVariable(name, "n/a")) for name in self.printer.varNames])
         prVars["TIME"] = self.timer.time
         self.printer.print(self.timer.time, prVars)
         
@@ -79,8 +87,9 @@ class CSMP_Model(ABC):
         # self.endConditions.append(EndCondition("RES", 450, ">="))
         self.setUp()
         self.integrator.initialize()
+        self.aliases = dict([(a, n) for n, a in self.printer.aliases.items()])
         
-        print(self.title)
+        print(self.title + "\n")
         self.timer.start()
         self.printer.printHeader()
         self.ratesEtc.update(self.loop(self.timer.time, self.timer.delt))
@@ -153,6 +162,10 @@ class CSMP_Model(ABC):
         self.stateVars[index].rate = rate
         
         
+    def aliasTimerVariables(self, **kwargs):
+        self.printer.setAliases(kwargs)
+    
+    
     def setTimer(self, **params):
         try:
             self.timer = type(self.timer)(**params)

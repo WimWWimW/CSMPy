@@ -1,6 +1,6 @@
 import ast
 import inspect
-import sys
+import re, sys
 from abc import ABC, abstractmethod
 from itertools import zip_longest
 
@@ -30,21 +30,32 @@ class Printer:
     '''
     
     def __init__(self, varNames = [], format = (0, 0)):
-        fmt = ("{:>%d.%df}" % format) if any(format) else "{:>15.4f}"
-        self.formats  = ["{:>8.4f}"] + [fmt] * len(varNames) 
+        self.fldWidth = format if any(format) else (12, 4)
+        fmt           = "{:>%d.%df}" % self.fldWidth
+        self.fltFmts  = ["{:>8.4f}"] + [fmt] * len(varNames) 
+        self.strFmts  = [re.sub(r"([0-9]*)\.([0-9]*)f", r"\1s", fmt) for fmt in self.fltFmts]
         self.varNames = ["TIME"   ] + list(varNames)
+        self.aliases  = {}
+        
+            
+    def setAliases(self, aliasNames = {}):
+        self.aliases = aliasNames
     
     
     def printHeader(self):
-        for name, fmt  in zip(self.varNames, self.formats):
-            print(fmt.replace("f}", "}").format(name), end = "")
+        for name, fmt  in zip(self.varNames, self.strFmts):
+            name = self.aliases.get(name, name)
+            print(fmt.format(name), end = "")
         print()
             
         
     def print(self, time, values):
-        for name, fmt  in zip(self.varNames, self.formats):
-            x = values.get(name, -99999)
-            print(fmt.format(x), end = "")
+        for name, ffmt, sfmt  in zip(self.varNames, self.fltFmts, self.strFmts):
+            x = values.get(name, "n/a")
+            try:
+                print(ffmt.format(x), end = "")
+            except:
+                print(sfmt.format(x))
         print()
             
     

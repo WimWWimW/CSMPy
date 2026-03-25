@@ -9,16 +9,15 @@ def transformLabelname(self): ...
 
 """
 
-# from csmp.customTypes import IntegrationMethod
+from pathlib import pwd
 import lib.ast_comments as ast
 from lib.smallUtilities import dump, walkSmarter
 
-from csmp.precompiler.statementBase import Statement, StatementStatus, StatementCategory, ConstantDeclaration,\
-    AssigningStatement, Varlist, BasicStatement, ExecutionControl
-from csmp.precompiler.lister import Lister
 from csmp import errors
-from unicodedata import category
-from pathlib import pwd
+from csmp.precompiler.lister import Lister
+from csmp.precompiler.statementBase import Statement, StatementStatus, StatementCategory, ConstantDeclaration, \
+    AssigningStatement, Varlist, BasicStatement, ExecutionControl
+
 
 def symbols():
     return [n for n in globals() if n == n.upper() and not n.startswith("_") ]
@@ -94,7 +93,7 @@ class FunctionGenerator(AssigningStatement):
         # transformation not valid before link is set
         if category == StatementCategory.generators:
             args = self._kwdList() 
-            return self._nodeFromString(f"self.create{self.className(1)}({self.index}, function = {self.linkedFunction}, {args})")
+            return self._nodeFromString(f"self.createCsmp{self.className(0)}({self.index}, function = {self.linkedFunction}, {args})")
 
         
     def transformInplace(self):
@@ -103,13 +102,13 @@ class FunctionGenerator(AssigningStatement):
 
 
 class AFGEN(FunctionGenerator):        
-    # syntax: ... = AFGEN(<function>, <value>, **kwargs)
+    # syntax: <out> = AFGEN(<function>, <value>, **kwargs)
     pass
 
 
 
 class NLFGEN(AFGEN):        
-    # syntax: ... = NLFGEN(<function>, <value>, **kwargs)
+    # syntax: <out> = NLFGEN(<function>, <value>, **kwargs)
     # formally this is not a statement but a function. But it behaves like a statement
     # in that it has to be predefined. Also it's got to be linked to its FUNCTION
     # object before writing the runnable model.
@@ -131,7 +130,19 @@ class OVERLAY(Statement):
 
 class RENAME(Statement):
     # syntax: RENAME(TIME = 'TIME', DELT = 'DELT', DELMIN = 'DELMIN', FINTIM = 'FINTIM', PRDEL = 'PRDEL', OUTDEL = 'OUTDEL')
-    ...
+    def __init__(self, node):
+        super().__init__(node)
+        
+        if self.args:
+            raise errors.PrecompilerError("unnamed parameters not allowed")
+        
+        faultyKwds = [k for k, _ in self.kwargs if not k in ('TIME', 'DELT', 'DELMIN', 'FINTIM', 'PRDEL', 'OUTDEL')]
+        if any(faultyKwds):
+            raise errors.PrecompilerError("invalid parameter(s): " + ", ".join(faultyKwds))
+            
+        self.transformations = {
+            StatementCategory.systemParams:
+                self._nodeFromString(f"self.aliasTimerVariables({self._kwdList()})")}
 
 
 

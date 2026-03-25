@@ -118,7 +118,7 @@ class StatementClass(NodeWrap): # TODO doubtfully distinct from Statement
         Statement.classes[cls.__name__] = cls
         
         if cls.status == StatementStatus.UNDEFINED:
-            cls.status = StatementStatus.OK if not "..." in inspect.getsource(cls)else StatementStatus.not_yet_supported 
+            cls.status = StatementStatus.OK if not "..." in inspect.getsource(cls) else StatementStatus.not_yet_supported 
 
 
         

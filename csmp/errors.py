@@ -7,7 +7,7 @@ class CSMPyError(Exception):        pass    # general ancestor
 
 class ProgramError(CSMPyError):     pass    # errors likely due to this software
 
-class ModelError(CSMPyError):       pass    # errors due to faulty precompiler
+class ModelError(CSMPyError):       pass    # errors due to faulty precompiler ... ???
 
 class SimulationError(ModelError):  pass    # raised during model execution
 
